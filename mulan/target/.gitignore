@@ -1,4 +1,3 @@
-/classes/
-/test-classes/
-/test/*
-/src/*
+*
+!/src/mlpms
+!.gitignore
