@@ -1,3 +1,4 @@
-[^.]*
-!/src/mlpms
+*
 !.gitignore
+!/src/mlpms/*
+!/src/mlpms/**
