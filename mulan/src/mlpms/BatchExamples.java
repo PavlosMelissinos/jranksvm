@@ -27,6 +27,7 @@ public class BatchExamples {
 
     	System.out.println("Hello World");
     	System.out.println("Hello World2");
+    	System.out.println("Hello World3");
     	 try {
 	MultiLabelInstances train, test;
 	train = new MultiLabelInstances("data\\yeast-train.arff",
