@@ -14,7 +14,7 @@ import mulan.evaluation.Evaluation;
 import mulan.evaluation.Evaluator;
 import mulan.examples.CrossValidationExperiment;
 import weka.classifiers.Classifier;
-import weka.classifiers.bayes.NaiveBayes;
+import weka.classifiers.trees.J48;
 
 
 public class BatchExamples {
@@ -35,7 +35,7 @@ public class BatchExamples {
 	 "data\\yeast.xml");
 	test = new MultiLabelInstances("data\\testData\\yeast-test.arff",
 	 "data\\testData\\yeast.xml");
-	Classifier base = new NaiveBayes();
+	Classifier base = new J48();
 	BinaryRelevance br = new BinaryRelevance(base);
 	br.build(train);
 	
