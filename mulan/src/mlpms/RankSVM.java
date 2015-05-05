@@ -1,5 +1,6 @@
 package mlpms;
 
+import weka.classifiers.functions.SMO;
 import weka.core.Instance;
 import weka.core.TechnicalInformation;
 import weka.core.TechnicalInformation.Field;
@@ -25,7 +26,8 @@ public class RankSVM extends MultiLabelLearnerBase{
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
-		
+		SMO classifier = new SMO();
+		classifier.buildClassifier(trainingSet.getDataSet());
 	}
 
 	@Override

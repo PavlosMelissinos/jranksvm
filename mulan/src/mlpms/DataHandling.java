@@ -22,40 +22,40 @@ public class DataHandling {
      *
      * @param args command-line arguments -arff and -xml
      */
-    	try {
+		try {
 			MultiLabelInstances train, test;
-			train = new MultiLabelInstances("data\\yeast-train.arff",
-			 "data\\yeast.xml");
-			test = new MultiLabelInstances("data\\testData\\yeast-test.arff",
-			 "data\\testData\\yeast.xml");
+			train = new MultiLabelInstances("data/yeast-train.arff",
+			 "data/yeast.xml");
+			test = new MultiLabelInstances("data/yeast-test.arff",
+			 "data/yeast.xml");
 			
 			
 			Instances train_data = train.getDataSet();
 			LabelsMetaData train_labels =  train.getLabelsMetaData();
 			int [] indices = train.getLabelIndices();
 			int[][] matrix = {
-					  { 1, 2, 3 },
-					  { 4, 5, 6 },
-					  { 7, 8, 9 }
+					{ 1, 2, 3 },
+					{ 4, 5, 6 },
+					{ 7, 8, 9 }
 					};
 
-					for (int i = 0; i < matrix.length; i++) {
-					    for (int j = 0; j < matrix[0].length; j++) {
-					        System.out.print(matrix[i][j] + " ");
-					    }
-					    System.out.print("\n");
-					}
+			for (int i = 0; i < matrix.length; i++) {
+			    for (int j = 0; j < matrix[0].length; j++) {
+			    	System.out.print(matrix[i][j] + " ");
+			    }
+			    System.out.print("\n");
+			}
 					
-					for (int i = 0; i < indices.length; i++) {
-					    //for (int j = 0; j < indices[0].length; j++) {
-					        System.out.print(indices[i] + " ");
-					    //}
-					    //System.out.print("\n");
-					}
+			for (int i = 0; i < indices.length; i++) {
+				//for (int j = 0; j < indices[0].length; j++) {
+			        System.out.print(indices[i] + " ");
+			    //}
+			    //System.out.print("\n");
+			}
 			//train_data = train.getDataSet(train);
 			System.out.println(train.getNumInstances());
 			System.out.println(train.getNumLabels());
-			//System.out.println(train_data);
+			System.out.println(train_data);
 			//System.out.println(train_labels);
 			System.out.println(indices);
 			//Classifier base = new J48();
