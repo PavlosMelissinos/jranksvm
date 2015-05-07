@@ -11,6 +11,10 @@ import java.util.logging.Logger;
 
 
 
+
+
+
+
 import scpsolver.constraints.LinearBiggerThanEqualsConstraint;
 import scpsolver.constraints.LinearSmallerThanEqualsConstraint;
 import scpsolver.lpsolver.LinearProgramSolver;
@@ -25,6 +29,8 @@ import mulan.evaluation.Evaluator;
 import mulan.examples.CrossValidationExperiment;
 import weka.classifiers.Classifier;
 import weka.classifiers.trees.J48;
+import weka.core.Instance;
+import weka.core.Instances;
 
 
 public class BatchExamples {
@@ -32,14 +38,25 @@ public class BatchExamples {
      * Executes this example
      *
      * @param args command-line arguments -arff and -xml
+     * @throws InvalidDataFormatException 
      */
-    public static void main(String[] args) {
-//    	try {
-//			MultiLabelInstances train, test;
-//			train = new MultiLabelInstances("data\\yeast-train.arff",
-//			 "data\\yeast.xml");
+    public static void main(String[] args) throws InvalidDataFormatException {
+   	try {
+			MultiLabelInstances trainingSet;
+            trainingSet = new MultiLabelInstances("data\\yeast-train.arff", "data\\yeast.xml");
+            int [] temp = trainingSet.getLabelIndices();
+            for (int j = 0; j < trainingSet.getNumInstances(); j++) {
+   			 Instance inst = trainingSet.getNextInstance();
+   			 
+   			// double train_labels= inst.value(trainingSet.(j));
+        }       
 //			test = new MultiLabelInstances("data\\testData\\yeast-test.arff",
 //			 "data\\testData\\yeast.xml");
+            
+            //@SuppressWarnings("unused")
+			//Instances train_data = train.getDataSet();
+            //@SuppressWarnings("unused")
+			Classifier base = new J48();
 //			Classifier base = new J48();
 //			BinaryRelevance br = new BinaryRelevance(base);
 //			br.build(train);
@@ -47,17 +64,20 @@ public class BatchExamples {
 //			Evaluator eval = new Evaluator();
 //			Evaluation results = eval.evaluate(br, test, train);
 //			System.out.println(results);
-//	    } catch (InvalidDataFormatException ex) {
-//	        Logger.getLogger(CrossValidationExperiment.class.getName()).log(Level.SEVERE, null, ex);
-//	    } catch (Exception ex) {
-//	        Logger.getLogger(CrossValidationExperiment.class.getName()).log(Level.SEVERE, null, ex);
-//	    }
-    	LinearProgram lp = new LinearProgram(new double[]{5.0,10.0});
-    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{3.0,1.0}, 8.0, "c1"));
-    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{0.0,4.0}, 4.0, "c2"));
-    	lp.addConstraint(new LinearSmallerThanEqualsConstraint(new double[]{2.0,0.0}, 2.0, "c3"));
-    	lp.setMinProblem(true);
-    	LinearProgramSolver solver  = SolverFactory.newDefault();
-    	double[] sol = solver.solve(lp);
+            
+            LinearProgram lp = new LinearProgram(new double[]{5.0,10.0});
+        	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{3.0,1.0}, 8.0, "c1"));
+        	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{0.0,4.0}, 4.0, "c2"));
+        	lp.addConstraint(new LinearSmallerThanEqualsConstraint(new double[]{2.0,0.0}, 2.0, "c3"));
+        	lp.setMinProblem(true);
+        	LinearProgramSolver solver  = SolverFactory.newDefault();
+        	double[] sol = solver.solve(lp);
+        }
+        catch (InvalidDataFormatException ex) {
+       Logger.getLogger(CrossValidationExperiment.class.getName()).log(Level.SEVERE, null, ex);
+	    } catch (Exception ex) {
+	        Logger.getLogger(CrossValidationExperiment.class.getName()).log(Level.SEVERE, null, ex);
+       }
     }
+    
 }

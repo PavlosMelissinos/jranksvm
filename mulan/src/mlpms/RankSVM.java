@@ -1,8 +1,14 @@
 package mlpms;
 
+import java.util.ArrayList;
+import java.util.Random;
+
 import weka.classifiers.functions.SMO;
+import weka.core.Attribute;
 import weka.core.Instance;
+import weka.core.Instances;
 import weka.core.TechnicalInformation;
+import weka.core.Utils;
 import weka.core.TechnicalInformation.Field;
 import weka.core.TechnicalInformation.Type;
 import mulan.classifier.InvalidDataException;
@@ -23,11 +29,23 @@ import mulan.data.MultiLabelInstances;
 @SuppressWarnings("serial")
 public class RankSVM extends MultiLabelLearnerBase{
 
+    /** Train_data. */
+    private MultiLabelInstances trainingSet;
+	
+    /** Train labels. */
+    //protected double[] m_class;
+	
+   
+    
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
+		 for (int j = 0; j < trainingSet.getNumInstances(); j++) {
+			 Instance inst = trainingSet.getNextInstance();
+			 double train_labels= inst.value(labelIndices[j]);
+     }       
 		SMO classifier = new SMO();
-		classifier.buildClassifier(trainingSet.getDataSet());
+		//classifier.buildClassifier(trainingSet.getDataSet());
 	}
 
 	@Override
