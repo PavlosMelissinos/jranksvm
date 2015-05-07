@@ -1,6 +1,7 @@
 package mlpms;
 
 import weka.classifiers.functions.SMO;
+import weka.classifiers.functions.supportVector.SMOset;
 import weka.core.Instance;
 import weka.core.TechnicalInformation;
 import weka.core.TechnicalInformation.Field;
@@ -26,8 +27,36 @@ public class RankSVM extends MultiLabelLearnerBase{
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
-		SMO classifier = new SMO();
-		classifier.buildClassifier(trainingSet.getDataSet());
+		
+		int[] labelIndices = trainingSet.getLabelIndices();
+		//dataset preprocessing
+		int numTraining = trainingSet.getNumInstances();
+		int numClass = trainingSet.getNumLabels();
+		SMOset SVs = new SMOset(numTraining);
+		
+		for (Instance inst : trainingSet.getDataSet()){
+			double[] labels = new double[labelIndices.length];
+			for (int i = 0; i < labelIndices.length; i++){
+				labels[i] = inst.value(labelIndices[i]);
+			}
+		}
+		
+		/*
+		 * SVs=[];
+		 * target=[];
+		 * //[num_training,~]=size(train_data);
+		 * //[num_class,~]=size(train_target);
+		 * for i=1:num_training
+		 * //    temp=train_target(:,i);
+		 *     if((sum(temp)~=num_class)&&(sum(temp)~=-num_class))
+		 *         SVs=[SVs,train_data(i,:)'];
+		 *         target=[target,temp];
+		 *     end
+		 * end
+		*/
+		
+		//initialize lagrange multipliers (alpha)
+		
 	}
 
 	@Override
