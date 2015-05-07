@@ -4,11 +4,8 @@ import java.util.ArrayList;
 import java.util.Random;
 
 import weka.classifiers.functions.SMO;
-<<<<<<< HEAD
 import weka.core.Attribute;
-=======
 import weka.classifiers.functions.supportVector.SMOset;
->>>>>>> branch 'master' of ssh://git@bitbucket.org/PavlosM/jranksvm.git
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.TechnicalInformation;
@@ -65,6 +62,8 @@ public class RankSVM extends MultiLabelLearnerBase{
 				labels[i] = inst.value(labelIndices[i]);
 			}
 		}
+
+
 		
 		/*
 		 * SVs=[];
@@ -81,7 +80,7 @@ public class RankSVM extends MultiLabelLearnerBase{
 		*/
 		
 		//initialize lagrange multipliers (alpha)
-		
+
 	}
 
 	@Override

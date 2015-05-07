@@ -15,6 +15,8 @@ import java.util.logging.Logger;
 
 
 
+
+
 import scpsolver.constraints.LinearBiggerThanEqualsConstraint;
 import scpsolver.constraints.LinearSmallerThanEqualsConstraint;
 import scpsolver.lpsolver.LinearProgramSolver;
@@ -28,6 +30,7 @@ import mulan.evaluation.Evaluation;
 import mulan.evaluation.Evaluator;
 import mulan.examples.CrossValidationExperiment;
 import weka.classifiers.Classifier;
+import weka.classifiers.functions.supportVector.SMOset;
 import weka.classifiers.trees.J48;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -43,20 +46,25 @@ public class BatchExamples {
     public static void main(String[] args) throws InvalidDataFormatException {
    	try {
 			MultiLabelInstances trainingSet;
-            trainingSet = new MultiLabelInstances("data\\yeast-train.arff", "data\\yeast.xml");
-            int [] temp = trainingSet.getLabelIndices();
-            for (int j = 0; j < trainingSet.getNumInstances(); j++) {
-   			 Instance inst = trainingSet.getNextInstance();
+           trainingSet = new MultiLabelInstances("data\\yeast-train.arff", "data\\yeast.xml");
+            //int [] temp = trainingSet.getLabelIndices();
+          //  for (int j = 0; j < trainingSet.getNumInstances(); j++) {
+   			// Instance inst = trainingSet.getNextInstance();
+   			 
+   		RankSVM classifier = new RankSVM();
+   		classifier.build(trainingSet);
+   		//Classifier base = new J48();
+   		//}
    			 
    			// double train_labels= inst.value(trainingSet.(j));
-        }       
+     //   }       
 //			test = new MultiLabelInstances("data\\testData\\yeast-test.arff",
 //			 "data\\testData\\yeast.xml");
             
             //@SuppressWarnings("unused")
 			//Instances train_data = train.getDataSet();
-            //@SuppressWarnings("unused")
-			Classifier base = new J48();
+            ///@SuppressWarnings("unused")
+			//Classifier base = new J48();
 //			Classifier base = new J48();
 //			BinaryRelevance br = new BinaryRelevance(base);
 //			br.build(train);
