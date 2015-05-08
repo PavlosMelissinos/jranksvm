@@ -46,7 +46,7 @@ public class BatchExamples {
     public static void main(String[] args) throws InvalidDataFormatException {
    	try {
 			MultiLabelInstances trainingSet;
-           trainingSet = new MultiLabelInstances("data\\yeast-train.arff", "data\\yeast.xml");
+           trainingSet = new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
             //int [] temp = trainingSet.getLabelIndices();
           //  for (int j = 0; j < trainingSet.getNumInstances(); j++) {
    			// Instance inst = trainingSet.getNextInstance();

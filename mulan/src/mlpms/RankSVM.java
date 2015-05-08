@@ -1,7 +1,14 @@
 package mlpms;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
+
+import org.apache.commons.math3.linear.MatrixUtils;
+import org.apache.commons.math3.linear.RealMatrix;
 
 import weka.classifiers.functions.SMO;
 import weka.core.Attribute;
@@ -33,6 +40,8 @@ public class RankSVM extends MultiLabelLearnerBase{
     /** Train_data. */
     private MultiLabelInstances trainingSet;
 	
+    private RealMatrix SVs;
+    private RealMatrix target;
     /** Train labels. */
     //protected double[] m_class;
 	
@@ -41,29 +50,14 @@ public class RankSVM extends MultiLabelLearnerBase{
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
-/* Lilia
-		 for (int j = 0; j < trainingSet.getNumInstances(); j++) {
-			 Instance inst = trainingSet.getNextInstance();
-			 double train_labels= inst.value(labelIndices[j]);
-     }       
+		/* Lilia
+		for (int j = 0; j < trainingSet.getNumInstances(); j++) {
+			Instance inst = trainingSet.getNextInstance();
+			double train_labels= inst.value(labelIndices[j]);
+		}       
 		SMO classifier = new SMO();
 		//classifier.buildClassifier(trainingSet.getDataSet());
-*/
-		
-		int[] labelIndices = trainingSet.getLabelIndices();
-		//dataset preprocessing
-		int numTraining = trainingSet.getNumInstances();
-		int numClass = trainingSet.getNumLabels();
-		SMOset SVs = new SMOset(numTraining);
-		
-		for (Instance inst : trainingSet.getDataSet()){
-			double[] labels = new double[labelIndices.length];
-			for (int i = 0; i < labelIndices.length; i++){
-				labels[i] = inst.value(labelIndices[i]);
-			}
-		}
-
-
+		*/
 		
 		/*
 		 * SVs=[];
@@ -79,8 +73,51 @@ public class RankSVM extends MultiLabelLearnerBase{
 		 * end
 		*/
 		
+		setup(trainingSet);
+		
 		//initialize lagrange multipliers (alpha)
 
+	}
+	
+	void setup(MultiLabelInstances trainingSet){
+		//Preprocessing - Initialize support vectors & targets (labels)
+		
+		int[] labelIndices = trainingSet.getLabelIndices();
+		//ArrayList labelIndices = new ArrayList(Arrays.asList(tempLabels));
+		int numTraining = trainingSet.getNumInstances();
+		int numClass = trainingSet.getNumLabels();
+
+		Instances insts = trainingSet.getDataSet();
+		int numAttr = insts.numAttributes();
+		int numFeatures = numAttr - numClass;
+		
+		double[][] SVsArray = new double[numTraining][numFeatures];
+		double[][] targetArray = new double[numTraining][numClass];
+		int omitted = 0;
+		for (int i = 0; i < numTraining; i++){
+			Instance inst = insts.get(i);
+			double sumTemp = 0;
+			double[] SVTemp = new double[numFeatures];
+			double[] targetTemp = new double[numClass];
+			int labelsChecked = 0;
+			for (int attr = 0; attr < numAttr; attr++){
+				if (labelIndices[labelsChecked] == attr){
+					targetTemp[labelsChecked] = inst.value(attr);
+					sumTemp += inst.value(attr);
+					labelsChecked++;
+				}
+				else
+					SVTemp[attr - labelsChecked] = inst.value(attr);
+			}
+			//filter out every instance that contains all or none of the labels (uninformative)
+			if ((sumTemp != numClass) && (sumTemp != -numClass)){
+				SVsArray[i - omitted] = SVTemp;
+				targetArray[i - omitted] = targetTemp;
+			}
+			else omitted++;
+		}
+		this.SVs = MatrixUtils.createRealMatrix(SVsArray);
+		this.target = MatrixUtils.createRealMatrix(targetArray);
 	}
 
 	@Override
