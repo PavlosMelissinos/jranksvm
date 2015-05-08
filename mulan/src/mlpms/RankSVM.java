@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Random;
 import java.util.stream.IntStream;
 
-import org.apache.commons.math3.linear.MatrixUtils;
-import org.apache.commons.math3.linear.RealMatrix;
+import org.apache.commons.math.linear.MatrixUtils;
+import org.apache.commons.math.linear.RealMatrix;
 
 import weka.classifiers.functions.SMO;
 import weka.core.Attribute;
@@ -34,100 +34,112 @@ import mulan.data.MultiLabelInstances;
 @SuppressWarnings("serial")
 public class RankSVM extends MultiLabelLearnerBase{
 
-    /** Train_data. */
+    /** Train_dataset. */
     private MultiLabelInstances trainingSet;
+    
+    /** Train_data (only features). */
+    private double[][] train_data;
 	
+    /** Train labels. */
+    private double[][] train_target;
+    
     private RealMatrix SVs;
+
     private RealMatrix target;
     /** Train labels. */
     //protected double[] m_class;
-	
    
     
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
-		chuck1Lilia(trainingSet);
-		setup(trainingSet);
-		
-		//initialize lagrange multipliers (alpha)
-
+		PreprocessingStep1(trainingSet);
 	}
-	private void chuck1Lilia(MultiLabelInstances trainingSet){
+	
+	void setup(MultiLabelInstances trainingSet){
+ 		//Preprocessing - Initialize support vectors & targets (labels)
+ 		
+ 		int[] labelIndices = trainingSet.getLabelIndices();
+ 		//ArrayList labelIndices = new ArrayList(Arrays.asList(tempLabels));
+ 		int numTraining = trainingSet.getNumInstances();
+ 		int numClass = trainingSet.getNumLabels();
+ 
+ 		Instances insts = trainingSet.getDataSet();
+ 		int numAttr = insts.numAttributes();
+ 		int numFeatures = numAttr - numClass;
+ 		
+ 		double[][] SVsArray = new double[numTraining][numFeatures];
+ 		double[][] targetArray = new double[numTraining][numClass];
+ 		int omitted = 0;
+ 		for (int i = 0; i < numTraining; i++){
+ 			Instance inst = insts.get(i);
+ 			double sumTemp = 0;
+ 			double[] SVTemp = new double[numFeatures];
+ 			double[] targetTemp = new double[numClass];
+ 			int labelsChecked = 0;
+ 			for (int attr = 0; attr < numAttr; attr++){
+ 				if (labelIndices[labelsChecked] == attr){
+ 					targetTemp[labelsChecked] = inst.value(attr);
+ 					sumTemp += inst.value(attr);
+ 					labelsChecked++;
+ 				}
+ 				else
+ 					SVTemp[attr - labelsChecked] = inst.value(attr);
+ 			}
+ 			//filter out every instance that contains all or none of the labels (uninformative)
+ 			if ((sumTemp != numClass) && (sumTemp != -numClass)){
+ 				SVsArray[i - omitted] = SVTemp;
+ 				targetArray[i - omitted] = targetTemp;
+ 			}
+ 			else omitted++;
+ 		}
+ 		this.SVs = MatrixUtils.createRealMatrix(SVsArray);
+ 		this.target = MatrixUtils.createRealMatrix(targetArray);
+ 	}
+	
+	
+	
+	private void PreprocessingStep1(MultiLabelInstances trainingSet){
+	
+	    //private void chuck1Lilia(){
 		int[] labelIndices = trainingSet.getLabelIndices();
 		//dataset preprocessing
 		int numTraining = trainingSet.getNumInstances();
 		int numClass = trainingSet.getNumLabels();
 		int numAttributes = trainingSet.getFeatureIndices().length;
-		double[][] SVs = new double[numAttributes][numTraining];
-		int[] train_target = new int[numClass];
-		int [][]indicesToKeep = new int[numAttributes][numTraining];
-				
-		for (Instance inst : trainingSet.getDataSet()){
-			int j=1;
+		double[][] SVs = new double[numTraining][numAttributes];
+		int[][] train_target = new int[numTraining][numClass];
+		
+		
+		int count=0;
+		for (Instance inst : trainingSet.getDataSet()){  
 			int[] labels = new int[labelIndices.length];
 			for (int i = 0; i < labelIndices.length; i++){
 				labels[i] = (int) ( inst.value(labelIndices[i]));
-				int sumTemp = IntStream.of((int) labels[i]).sum();
+			}
+				int sumTemp = IntStream.of(labels).sum();
 				if ((sumTemp!=numClass) && (sumTemp!=-numClass))
 				{
-					//double [] tempInst = inst.toDoubleArray(); 	
-				    //SVs[i][j]=inst.getValueAt(i,j);
-					//System.out.println("The sum is " + -numClass);
-					//System.out.println("The sum is " + SVs.length);
-					//System.out.println("The sum is " + SVs[0].length);
-				    train_target[i]=labels[i];
-				    j = j+1;
-					//System.out.println("The sum is " + sumTemp);
+					int obs = count;
+					double [] tempMat= new double[numAttributes];
+					System.arraycopy(inst.toDoubleArray(), 0, tempMat, 0, numAttributes);
+					for(int k=0; k < numAttributes; k++){
+						SVs[obs][k] = tempMat[k];
+						//System.out.println("SVs " + SVs[obs][k] );	
+					}
+					for(int l=0; l< numLabels; l++){
+						train_target[obs][l] = labels[l];
+						//System.out.println("SVs " + train_target[obs][l]  );	
+					}
+					obs++; 	
 				}
+				count++;
 			}
-		}
 	}
 	
-	private int length(int[] featureIndices) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-	
-	void setup(MultiLabelInstances trainingSet){
-		//Preprocessing - Initialize support vectors & targets (labels)
-		
-		int[] labelIndices = trainingSet.getLabelIndices();
-		//ArrayList labelIndices = new ArrayList(Arrays.asList(tempLabels));
-		int numTraining = trainingSet.getNumInstances();
-		int numClass = trainingSet.getNumLabels();
 
-		Instances insts = trainingSet.getDataSet();
-		int numAttr = insts.numAttributes();
-		int numFeatures = numAttr - numClass;
-		
-		double[][] SVsArray = new double[numTraining][numFeatures];
-		double[][] targetArray = new double[numTraining][numClass];
-		int omitted = 0;
-		for (int i = 0; i < numTraining; i++){
-			Instance inst = insts.get(i);
-			double sumTemp = 0;
-			double[] SVTemp = new double[numFeatures];
-			double[] targetTemp = new double[numClass];
-			int labelsChecked = 0;
-			for (int attr = 0; attr < numAttr; attr++){
-				if (labelIndices[labelsChecked] == attr){
-					targetTemp[labelsChecked] = inst.value(attr);
-					sumTemp += inst.value(attr);
-					labelsChecked++;
-				}
-				else
-					SVTemp[attr - labelsChecked] = inst.value(attr);
-			}
-			//filter out every instance that contains all or none of the labels (uninformative)
-			if ((sumTemp != numClass) && (sumTemp != -numClass)){
-				SVsArray[i - omitted] = SVTemp;
-				targetArray[i - omitted] = targetTemp;
-			}
-			else omitted++;
-		}
-		this.SVs = MatrixUtils.createRealMatrix(SVsArray);
-		this.target = MatrixUtils.createRealMatrix(targetArray);
+	private int length(int[] featureIndices) {
+		return 0;
 	}
 
 	@Override
@@ -156,3 +168,4 @@ public class RankSVM extends MultiLabelLearnerBase{
 	}
 
 }
+
