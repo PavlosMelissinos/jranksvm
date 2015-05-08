@@ -2,6 +2,7 @@ package mlpms;
 
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 import weka.classifiers.functions.SMO;
 import weka.core.Attribute;
@@ -41,46 +42,45 @@ public class RankSVM extends MultiLabelLearnerBase{
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
-/* Lilia
-		 for (int j = 0; j < trainingSet.getNumInstances(); j++) {
-			 Instance inst = trainingSet.getNextInstance();
-			 double train_labels= inst.value(labelIndices[j]);
-     }       
-		SMO classifier = new SMO();
-		//classifier.buildClassifier(trainingSet.getDataSet());
-*/
-		
+
+	}
+
+	
+	private void chuck1Lilia(){
 		int[] labelIndices = trainingSet.getLabelIndices();
 		//dataset preprocessing
 		int numTraining = trainingSet.getNumInstances();
 		int numClass = trainingSet.getNumLabels();
-		SMOset SVs = new SMOset(numTraining);
-		
+		int numAttributes = trainingSet.getFeatureIndices().length;
+		double[][] SVs = new double[numAttributes][numTraining];
+		int[] train_target = new int[numClass];
+		int [][]indicesToKeep = new int[numAttributes][numTraining];
+				
 		for (Instance inst : trainingSet.getDataSet()){
-			double[] labels = new double[labelIndices.length];
+			int j=1;
+			int[] labels = new int[labelIndices.length];
 			for (int i = 0; i < labelIndices.length; i++){
-				labels[i] = inst.value(labelIndices[i]);
+				labels[i] = (int) ( inst.value(labelIndices[i]));
+				int sumTemp = IntStream.of((int) labels[i]).sum();
+				if ((sumTemp!=numClass) && (sumTemp!=-numClass))
+				{
+					//double [] tempInst = inst.toDoubleArray(); 	
+				    //SVs[i][j]=inst.getValueAt(i,j);
+					//System.out.println("The sum is " + -numClass);
+					//System.out.println("The sum is " + SVs.length);
+					//System.out.println("The sum is " + SVs[0].length);
+				    train_target[i]=labels[i];
+				    j = j+1;
+					//System.out.println("The sum is " + sumTemp);
+				}
 			}
-		}
-
-
 		
-		/*
-		 * SVs=[];
-		 * target=[];
-		 * //[num_training,~]=size(train_data);
-		 * //[num_class,~]=size(train_target);
-		 * for i=1:num_training
-		 * //    temp=train_target(:,i);
-		 *     if((sum(temp)~=num_class)&&(sum(temp)~=-num_class))
-		 *         SVs=[SVs,train_data(i,:)'];
-		 *         target=[target,temp];
-		 *     end
-		 * end
-		*/
-		
-		//initialize lagrange multipliers (alpha)
+	}}
+	
 
+	private int length(int[] featureIndices) {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 
 	@Override
