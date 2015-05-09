@@ -62,6 +62,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 	private String type;
 
 	private int[][] targetValues;
+	
+	private double coefficient;
 
 	/** Train labels. */
 	// protected double[] m_class;
@@ -79,8 +81,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 		this.degree = 1;
 	}
 
+	public void setCoefficient() {
+		this.coefficient = 1;
+	}
+	
 	public void setType() {
-		this.type = "RBF";
+		this.type = "Polynomial";
 	}
 
 	public RealMatrix getSVs() {
@@ -92,7 +98,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 			throws Exception {
 		PreprocessingStep1(trainingSet);
 		setup(trainingSet);
-		setKernelOptions("RBF", 1, 1, 0);
+		//setKernelOptions("RBF", 1, 1, 0, 0);
+		//setKernelOptions("Polynomial", 1, 1, 1, 2);
 		KernelsSetup(trainingSet, getSVs());
 
 	}
@@ -235,7 +242,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 	/*
 	 */
 	private void setKernelOptions(String str, double cost, double gamma,
-			double degree) {
+			double coefficient, double degree) {
 
 		this.cost = cost;
 		if (str.equals("RBF")) {
@@ -244,6 +251,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		} else if (str.equals("Poly")) {
 			this.degree = degree;
 			this.gamma = gamma;
+			this.coefficient = coefficient;
 			this.type = "Polynomial";
 		} else {
 			this.type = "Linear";
@@ -269,17 +277,40 @@ public class RankSVM extends MultiLabelLearnerBase {
 					RealVector PowTemp = SubtractionTemp
 							.mapToSelf(new Power(2));
 					double sumTemp = StatUtils.sum(PowTemp.toArray());
-					//for (int k = 0; k < numClass; k++) {
-					//	sumTemp = sumTemp + PowTemp.getEntry(k);
-					//}
 					double MultTemp = (-this.gamma)*sumTemp;
 					double ExpTemp = FastMath.exp(MultTemp);
 					kernel[i][j] = ExpTemp;
 				}
 			}
+			RealMatrix Kernel =MatrixUtils.createRealMatrix(kernel);
+			System.out.println("OK RBF.");
 		}
-		RealMatrix RBFKernel =MatrixUtils.createRealMatrix(kernel);
-		System.out.println("OK RBF.");
+		else if (this.type.equals("Polynomial")) {
+			for (int i = 0; i < numTraining; i++) {
+				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
+				for (int j = 0; j < numTraining; j++) {
+					RealVector colVectorTemp2 = SVs_copy.getColumnVector(j);
+					double MultTemp1 = colVectorTemp1.dotProduct(colVectorTemp2);
+					double MultTemp2 = MultTemp1*(this.gamma);
+				    double AddTemp = MultTemp2 + this.coefficient;
+				    double PowTemp = Math.pow(AddTemp, this.degree);
+					kernel[i][j] = PowTemp;
+				}
+			}
+			RealMatrix Kernel =MatrixUtils.createRealMatrix(kernel);
+			System.out.println("OK Polynomial.");
+		}else if (this.type.equals("Linear")) {
+			for (int i = 0; i < numTraining; i++) {
+				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
+				for (int j = 0; j < numTraining; j++) {
+					RealVector colVectorTemp2 = SVs_copy.getColumnVector(j);
+					double MultTemp1 = colVectorTemp1.dotProduct(colVectorTemp2);
+					kernel[i][j] = MultTemp1 ;
+				}
+			}
+			RealMatrix Kernel =MatrixUtils.createRealMatrix(kernel);
+			System.out.println("OK Linear.");
+		}
 		
 	}
 
