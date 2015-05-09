@@ -105,8 +105,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 		int numTraining = trainingSet.getNumInstances();
 		int numClass = trainingSet.getNumLabels();
 		int numAttributes = trainingSet.getFeatureIndices().length;
-		double[][] SVs = new double[numTraining][numAttributes];
-		int[][] train_target = new int[numTraining][numClass];
+		double[][] SVsInit = new double[numTraining][numAttributes];
+		int[][] train_targetInit = new int[numTraining][numClass];
 
 		int count = 0;
 		int obs = 0;
@@ -119,32 +119,86 @@ public class RankSVM extends MultiLabelLearnerBase {
 			int sumTemp = IntStream.of(labels).sum();
 			if ((sumTemp != numClass) && (sumTemp != -numClass)) {
 				double[] tempMat = new double[numAttributes];
-				System.arraycopy(inst.toDoubleArray(), 0, tempMat, 0, numAttributes);
+				System.arraycopy(inst.toDoubleArray(), 0, tempMat, 0,
+						numAttributes);
 				for (int k = 0; k < numAttributes; k++) {
-					SVs[obs][k] = tempMat[k];
+					SVsInit[obs][k] = tempMat[k];
 				}
 				for (int l = 0; l < numLabels; l++) {
-					train_target[obs][l] = labels[l];}
+					train_targetInit[obs][l] = labels[l];
+				}
 				obs++;
-			} else {ommited++;}
+			} else {
+				ommited++;
+			}
 			count++;
 		}
-		double[][] SVsNew = new double[numTraining - ommited][numAttributes];
-		int[][] train_targetNew = new int[numTraining - ommited][numClass];
+		double[][] SVs = new double[numTraining - ommited][numAttributes];
+		int[][] train_target = new int[numTraining - ommited][numClass];
 		for (int i = 0; i < numTraining - ommited; i++) {
-			System.arraycopy(SVs[i], 0, SVsNew[i], 0, numAttributes);
-			System.arraycopy(train_target[i], 0, train_targetNew[i], 0,
+			System.arraycopy(SVsInit[i], 0, SVs[i], 0, numAttributes);
+			System.arraycopy(train_targetInit[i], 0, train_target[i], 0,
 					numClass);
 		}
-		if (Arrays.deepEquals(SVs, SVsNew))
+		if (Arrays.deepEquals(SVsInit, SVs))
 			System.out.println("Equal.");
 		else
 			System.out.println("Different.");
-		if (Arrays.deepEquals(train_target, train_targetNew))
+		if (Arrays.deepEquals(train_targetInit, train_target))
 			System.out.println("Equal.");
 		else
 			System.out.println("Different.");
 		System.out.println("OK");
+	
+		
+		// Chunk2
+		//int dim = SVs.length;
+		int[] Label_size = new int[numTraining];
+		int[] size_alpha = new int[numTraining];
+		ArrayList<ArrayList<Integer>> Label = new ArrayList<ArrayList<Integer>>();
+		ArrayList<ArrayList<Integer>> not_Label = new ArrayList<ArrayList<Integer>>();
+		/* Initialize ArrayList of ArrayLists to have specific number of rows. */
+		for (int i = 0; i < numTraining - ommited; i++) {
+			Label.add(null);
+			not_Label.add(null);
+		}
+		
+		for (int i = 0; i < numTraining - ommited; i++) {
+			ArrayList<Integer> train_target_temp = new ArrayList<Integer>();
+			for (int j = 0; j < numClass; j++) {
+				train_target_temp.add(train_target[i][j]); // temp label vector
+			}
+			Label_size[i] = train_target_temp.stream()
+					.mapToInt(Integer::intValue).sum();
+			size_alpha[i] = Label_size[i] * (numClass - Label_size[i]);
+
+			int times1 = 0;
+			int times2 = 0;
+			for (int l = 0; l < numClass; l++) {
+				if (train_target_temp.get(l) == 1) {
+					if (times1 == 0) {
+						ArrayList<Integer> LabelTemp = new ArrayList<Integer>();
+						LabelTemp.add(l);
+						Label.set(i, LabelTemp);
+					} else {
+						Label.get(i).add(i, l);
+					}
+					times1++;
+				}
+				else if (train_target_temp.get(l) == 0) {
+					if (times2 == 0) {
+						ArrayList<Integer> not_LabelTemp = new ArrayList<Integer>();
+						not_LabelTemp.add(l);
+						not_Label.set(i, not_LabelTemp);
+					} else {
+						not_Label.get(i).add(i, l);
+					}
+					times2++;
+				}
+			}
+			
+		}
+		System.out.println("OK Chunk2.");
 	}
 
 	private int length(int[] featureIndices) {
