@@ -106,6 +106,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 		//computeBias();
 		//computeSizePredictor();
 	}
+	
+	
 
 	void setup(MultiLabelInstances trainingSet) {
 		// Preprocessing - Initialize support vectors & targets (labels)
@@ -147,9 +149,47 @@ public class RankSVM extends MultiLabelLearnerBase {
 		this.SVs.getSubMatrix(0, numTraining - omitted - 1, 0, numFeatures - 1);
 		this.SVs = this.SVs.transpose(); //numInstances x numFeatures --> numFeatures x numInstances
 		this.target.getSubMatrix(0, numTraining - omitted - 1, 0, numClass - 1);
+		
+		// Chunk2
+		double[] Label_size = new double[numTraining];
+		double[] size_alpha = new double[numTraining];
+		ArrayList<ArrayList<Double>> Label = new ArrayList<ArrayList<Double>>();
+		ArrayList<ArrayList<Double>> not_Label = new ArrayList<ArrayList<Double>>();
+		/* Initialize ArrayList of ArrayLists to have specific number of rows. */
+		for (int i = 0; i < numTraining - omitted; i++) {
+			Label.add(null);
+			not_Label.add(null);
+		}
+
+		for (int i = 0; i < numTraining - omitted; i++) {
+			ArrayList<Double> train_target_temp = new ArrayList<Double>();
+			for (int j = 0; j < numClass; j++) {
+				train_target_temp.add(train_target[i][j]); // temp label vector
+			}
+			Label_size[i] = train_target_temp.stream()
+					.mapToDouble(Double::intValue).sum();
+			size_alpha[i] = Label_size[i] * (numClass - Label_size[i]);
+
+			ArrayList<Double> LabelTemp = new ArrayList<Double>();
+			ArrayList<Double> not_LabelTemp = new ArrayList<Double>();
+			for (int l = 0; l < numClass; l++) {
+				if (train_target_temp.get(l) == 1) {
+					LabelTemp.add((double) l);
+					Label.set(i, LabelTemp);
+				} else {
+					not_LabelTemp.add((double) l);
+					not_Label.set(i, not_LabelTemp);
+				}
+			}
+
+		}
+		ArrayRealVector sizeAlpha = new ArrayRealVector(size_alpha);
+		ArrayRealVector labelSize = new ArrayRealVector(Label_size);
 	}
 
-	private void PreprocessingStep1(MultiLabelInstances trainingSet) {
+	
+	
+	/*private void PreprocessingStep1(MultiLabelInstances trainingSet) {
 
 		int[] labelIndices = trainingSet.getLabelIndices();
 		// dataset preprocessing
@@ -203,12 +243,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 
 		// Chunk2
 		// int dim = SVs.length;
-		int[] Label_size = new int[numTraining];
+		/*int[] Label_size = new int[numTraining];
 		int[] size_alpha = new int[numTraining];
 		ArrayList<ArrayList<Integer>> Label = new ArrayList<ArrayList<Integer>>();
 		ArrayList<ArrayList<Integer>> not_Label = new ArrayList<ArrayList<Integer>>();
 		/* Initialize ArrayList of ArrayLists to have specific number of rows. */
-		for (int i = 0; i < numTraining - ommited; i++) {
+		/*for (int i = 0; i < numTraining - ommited; i++) {
 			Label.add(null);
 			not_Label.add(null);
 		}
@@ -238,12 +278,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 		System.out.println("OK Chunk2.");
 		double[][] SVsFinal = transposeMatrix(SVs);
 		this.support_vectors = SVsFinal;
-		this.targetValues = train_target;
-	}
+		this.targetValues = train_target;\
+		*/
+	//}
 
+	
 	// Chunk3
-	/*
-	 */
 	private void setKernelOptions(String str, double cost, double gamma,
 			double coefficient, double degree) {
 
@@ -319,13 +359,13 @@ public class RankSVM extends MultiLabelLearnerBase {
 
 
 
-	public static double[][] transposeMatrix(double[][] m) {
+	/*public static double[][] transposeMatrix(double[][] m) {
 		double[][] temp = new double[m[0].length][m.length];
 		for (int i = 0; i < m.length; i++)
 			for (int j = 0; j < m[0].length; j++)
 				temp[j][i] = m[i][j];
 		return temp;
-	}
+	}*/
 
 	private void trainingChunk1(int sizeAlphaSum){
 		//%Begin training phase
@@ -359,6 +399,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		//	continuing = testConvergence();
 		}
 	}
+	
 	
 	private void computeBeta(ArrayRealVector sizeAlpha, ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel){
 	    //Beta=zeros(num_class,num_training);
