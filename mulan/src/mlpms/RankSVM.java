@@ -95,7 +95,9 @@ public class RankSVM extends MultiLabelLearnerBase {
 				omitted++;
 		}
 		this.SVs = MatrixUtils.createRealMatrix(SVsArray);
+		this.SVs.getSubMatrix(0, numTraining - omitted, 0, numFeatures);
 		this.target = MatrixUtils.createRealMatrix(targetArray);
+		this.target.getSubMatrix(0, numTraining - omitted, 0, numClass);
 	}
 
 	private void PreprocessingStep1(MultiLabelInstances trainingSet) {
@@ -186,10 +188,6 @@ public class RankSVM extends MultiLabelLearnerBase {
 			
 		}
 		System.out.println("OK Chunk2.");
-	}
-
-	private int length(int[] featureIndices) {
-		return 0;
 	}
 
 	@Override
