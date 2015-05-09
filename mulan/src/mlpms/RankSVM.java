@@ -42,9 +42,9 @@ public class RankSVM extends MultiLabelLearnerBase {
 	/** Train labels. */
 	private double[][] train_target;
 
-	private RealMatrix SVs;
+	private BlockRealMatrix SVs;
 
-	private RealMatrix target;
+	private BlockRealMatrix target;
 
 	private ArrayList<BlockRealMatrix> cValue;
 
@@ -75,36 +75,34 @@ public class RankSVM extends MultiLabelLearnerBase {
 		int numAttr = insts.numAttributes();
 		int numFeatures = numAttr - numClass;
 
-		double[][] SVsArray = new double[numTraining][numFeatures];
-		double[][] targetArray = new double[numTraining][numClass];
+		SVs = new BlockRealMatrix(numTraining, numFeatures);
+		target = new BlockRealMatrix(numTraining, numClass);
 		int omitted = 0;
 		for (int i = 0; i < numTraining; i++) {
 			Instance inst = insts.get(i);
 			double sumTemp = 0;
-			double[] SVTemp = new double[numFeatures];
-			double[] targetTemp = new double[numClass];
+			ArrayRealVector SVRow = new ArrayRealVector(numFeatures);
+			ArrayRealVector targetRow = new ArrayRealVector(numClass);
 			int labelsChecked = 0;
 			for (int attr = 0; attr < numAttr; attr++) {
 				if (labelIndices[labelsChecked] == attr) {
-					targetTemp[labelsChecked] = inst.value(attr);
+					targetRow.setEntry(labelsChecked, inst.value(attr));
 					sumTemp += inst.value(attr);
 					labelsChecked++;
 				} else
-					SVTemp[attr - labelsChecked] = inst.value(attr);
+					SVRow.setEntry(attr - labelsChecked, inst.value(attr));
 			}
 			// filter out every instance that contains all or none of the labels
 			// (uninformative)
 			if ((sumTemp != numClass) && (sumTemp != -numClass)) {
-				SVsArray[i - omitted] = SVTemp;
-				targetArray[i - omitted] = targetTemp;
+				SVs.setRowVector(i-omitted, SVRow);
+				target.setRowVector(i-omitted, targetRow);
 			} else
 				omitted++;
 		}
-		this.SVs = MatrixUtils.createRealMatrix(SVsArray);
-		this.SVs.getSubMatrix(0, numTraining - omitted, 0, numFeatures);
+		this.SVs.getSubMatrix(0, numTraining - omitted - 1, 0, numFeatures - 1);
 		this.SVs = this.SVs.transpose(); //numInstances x numFeatures --> numFeatures x numInstances
-		this.target = MatrixUtils.createRealMatrix(targetArray); //numInstances x numClass
-		this.target.getSubMatrix(0, numTraining - omitted, 0, numClass);
+		this.target.getSubMatrix(0, numTraining - omitted - 1, 0, numClass - 1);
 	}
 
 	private void PreprocessingStep1(MultiLabelInstances trainingSet) {
