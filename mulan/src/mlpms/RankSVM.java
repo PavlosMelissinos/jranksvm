@@ -1,32 +1,28 @@
 package mlpms;
 
-import java.awt.List;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Random;
 import java.util.stream.IntStream;
 
-import org.apache.commons.math.stat.StatUtils;
-import org.apache.commons.math3.analysis.function.Add;
+import mulan.classifier.InvalidDataException;
+import mulan.classifier.MultiLabelLearnerBase;
+import mulan.classifier.MultiLabelOutput;
+import mulan.data.MultiLabelInstances;
+
 import org.apache.commons.math3.analysis.function.Power;
-import org.apache.commons.math3.linear.Array2DRowRealMatrix;
+import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
-import org.apache.commons.math3.analysis.function.Exp;
+import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.util.FastMath;
-import org.apache.commons.math3.linear.Array2DRowRealMatrix;
 
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.TechnicalInformation;
 import weka.core.TechnicalInformation.Field;
 import weka.core.TechnicalInformation.Type;
-import mulan.classifier.InvalidDataException;
-import mulan.classifier.MultiLabelLearnerBase;
-import mulan.classifier.MultiLabelOutput;
-import mulan.data.MultiLabelInstances;
 
 /**
  * <!-- globalinfo-start --> <!-- globalinfo-end -->
@@ -49,9 +45,13 @@ public class RankSVM extends MultiLabelLearnerBase {
 	/** Train labels. */
 	private double[][] train_target;
 
-	private RealMatrix SVs;
+	private BlockRealMatrix SVs;
 
-	private RealMatrix target;
+	private BlockRealMatrix target;
+
+	private ArrayList<BlockRealMatrix> cValue;
+
+	private ArrayRealVector alpha;
 
 	private double cost;
 
@@ -89,19 +89,22 @@ public class RankSVM extends MultiLabelLearnerBase {
 		this.type = "Polynomial";
 	}
 
-	public RealMatrix getSVs() {
+	public BlockRealMatrix getSVs() {
 		return this.SVs;
 	}
 
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
-		PreprocessingStep1(trainingSet);
+		//PreprocessingStep1(trainingSet);
 		setup(trainingSet);
 		//setKernelOptions("RBF", 1, 1, 0, 0);
 		//setKernelOptions("Polynomial", 1, 1, 1, 2);
 		KernelsSetup(trainingSet, getSVs());
 
+		//findAlpha();
+		//computeBias();
+		//computeSizePredictor();
 	}
 
 	void setup(MultiLabelInstances trainingSet) {
@@ -116,34 +119,34 @@ public class RankSVM extends MultiLabelLearnerBase {
 		int numAttr = insts.numAttributes();
 		int numFeatures = numAttr - numClass;
 
-		double[][] SVsArray = new double[numTraining][numFeatures];
-		double[][] targetArray = new double[numTraining][numClass];
+		SVs = new BlockRealMatrix(numTraining, numFeatures);
+		target = new BlockRealMatrix(numTraining, numClass);
 		int omitted = 0;
 		for (int i = 0; i < numTraining; i++) {
 			Instance inst = insts.get(i);
 			double sumTemp = 0;
-			double[] SVTemp = new double[numFeatures];
-			double[] targetTemp = new double[numClass];
+			ArrayRealVector SVRow = new ArrayRealVector(numFeatures);
+			ArrayRealVector targetRow = new ArrayRealVector(numClass);
 			int labelsChecked = 0;
 			for (int attr = 0; attr < numAttr; attr++) {
 				if (labelIndices[labelsChecked] == attr) {
-					targetTemp[labelsChecked] = inst.value(attr);
+					targetRow.setEntry(labelsChecked, inst.value(attr));
 					sumTemp += inst.value(attr);
 					labelsChecked++;
 				} else
-					SVTemp[attr - labelsChecked] = inst.value(attr);
+					SVRow.setEntry(attr - labelsChecked, inst.value(attr));
 			}
 			// filter out every instance that contains all or none of the labels
 			// (uninformative)
 			if ((sumTemp != numClass) && (sumTemp != -numClass)) {
-				SVsArray[i - omitted] = SVTemp;
-				targetArray[i - omitted] = targetTemp;
+				SVs.setRowVector(i-omitted, SVRow);
+				target.setRowVector(i-omitted, targetRow);
 			} else
 				omitted++;
 		}
-		RealMatrix SVsTr = MatrixUtils.createRealMatrix(SVsArray);
-		this.SVs = SVsTr.transpose();
-		this.target = MatrixUtils.createRealMatrix(targetArray);
+		this.SVs.getSubMatrix(0, numTraining - omitted - 1, 0, numFeatures - 1);
+		this.SVs = this.SVs.transpose(); //numInstances x numFeatures --> numFeatures x numInstances
+		this.target.getSubMatrix(0, numTraining - omitted - 1, 0, numClass - 1);
 	}
 
 	private void PreprocessingStep1(MultiLabelInstances trainingSet) {
@@ -266,7 +269,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		// Initialize kernel with 0s.
 		for (double[] row : kernel)
 			Arrays.fill(row, (double) 0);
-		RealMatrix SVs_copy = this.SVs;
+		BlockRealMatrix SVs_copy = this.SVs;
 
 		if (this.type.equals("RBF")) {
 			for (int i = 0; i < numTraining; i++) {
@@ -324,10 +327,70 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return temp;
 	}
 
-	private int length(int[] featureIndices) {
-		return 0;
+	private void trainingChunk1(int sizeAlphaSum){
+		//%Begin training phase
+
+		this.alpha = new ArrayRealVector(sizeAlphaSum, 0);
+
+		this.cValue = new ArrayList<BlockRealMatrix>();
+		//cValue.
+		int numClass = target.getColumnDimension();
+		for (int i = 0; i < numClass; i++){
+			BlockRealMatrix newAlpha = new BlockRealMatrix(numClass, numClass);
+			ArrayRealVector rowVector = new ArrayRealVector(sizeAlphaSum, 1);
+			newAlpha.setRowVector(i, rowVector);
+			ArrayRealVector columnVector = new ArrayRealVector(sizeAlphaSum, -1);
+			newAlpha.setColumnVector(i, columnVector);
+			this.cValue.add(newAlpha);
+		}
+		System.out.println("OK training chunk 1.");
+	}
+	
+	private void findAlpha(ArrayRealVector sizeAlpha, ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel){
+		boolean continuing = true;
+		int iteration = 0;
+	    System.out.println("current iteration: " + iteration);
+		while (continuing){
+		    iteration++;
+			computeBeta(sizeAlpha, labelSize, Label, notLabel);
+		//	computeGradient();
+		//	findAlphaNew();
+		//	findLambda();
+		//	continuing = testConvergence();
+		}
+	}
+	
+	private void computeBeta(ArrayRealVector sizeAlpha, ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel){
+	    //Beta=zeros(num_class,num_training);
+		int numClass = this.trainingSet.getNumLabels();
+		int numTraining = this.trainingSet.getNumInstances();
+		BlockRealMatrix beta = new BlockRealMatrix(numClass, numTraining);
+		for (int k = 0; k < numClass; k++){
+			for (int i = 0; i < numTraining; i++){
+				double sum = StatUtils.sum(sizeAlpha.getSubVector(0, i-1).toArray());
+				for (int m = 0; m < labelSize.getEntry(i); m++){
+					for (int n = 0; n < numClass - labelSize.getEntry(i); n++){
+						int index = new Double(sum + (m - 1) * (numClass - labelSize.getEntry(i)) + n).intValue();
+						double oldBetaVal = beta.getEntry(k, i);
+						double alphaVal = alpha.getEntry(index);
+						int labelIndex = new Double(Label.get(i).getEntry(m)).intValue();
+						int notLabelIndex = new Double(notLabel.get(i).getEntry(n)).intValue();
+						double cv = cValue.get(k).getEntry(labelIndex, notLabelIndex);
+						double newBetaVal = oldBetaVal + cv * alphaVal;
+						beta.setEntry(k, i, newBetaVal);
+					}
+				}
+			}
+		}
 	}
 
+	private void computeBias(){
+		//stub
+	}
+	private void computeSizePredictor(){
+		//stub
+	}
+	
 	@Override
 	protected MultiLabelOutput makePredictionInternal(Instance instance)
 			throws Exception, InvalidDataException {
