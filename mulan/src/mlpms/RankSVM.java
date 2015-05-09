@@ -174,24 +174,28 @@ public class RankSVM extends MultiLabelLearnerBase {
 
 			int times1 = 0;
 			int times2 = 0;
+			ArrayList<Integer> LabelTemp = new ArrayList<Integer>();
+			ArrayList<Integer> not_LabelTemp = new ArrayList<Integer>();
 			for (int l = 0; l < numClass; l++) {
 				if (train_target_temp.get(l) == 1) {
 					if (times1 == 0) {
-						ArrayList<Integer> LabelTemp = new ArrayList<Integer>();
+						//ArrayList<Integer> LabelTemp = new ArrayList<Integer>();
 						LabelTemp.add(l);
 						Label.set(i, LabelTemp);
 					} else {
-						Label.get(i).add(i, l);
+						LabelTemp.add(l);
+						Label.set(i, LabelTemp);
 					}
 					times1++;
 				}
 				else if (train_target_temp.get(l) == 0) {
 					if (times2 == 0) {
-						ArrayList<Integer> not_LabelTemp = new ArrayList<Integer>();
+						//ArrayList<Integer> not_LabelTemp = new ArrayList<Integer>();
 						not_LabelTemp.add(l);
 						not_Label.set(i, not_LabelTemp);
 					} else {
-						not_Label.get(i).add(i, l);
+						not_LabelTemp.add(l);
+						not_Label.set(i, not_LabelTemp);
 					}
 					times2++;
 				}
