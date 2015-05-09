@@ -13,7 +13,13 @@ import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
+import org.apache.commons.math3.linear.Array2DRowRealMatrix;
+import org.apache.commons.math3.linear.RealVector;
 import org.apache.commons.math3.stat.StatUtils;
+import org.apache.commons.math3.analysis.function.Add;
+import org.apache.commons.math3.analysis.function.Power;
+import org.apache.commons.math3.analysis.function.Exp;
+import org.apache.commons.math3.util.FastMath;
 
 import weka.core.Instance;
 import weka.core.Instances;
@@ -50,14 +56,48 @@ public class RankSVM extends MultiLabelLearnerBase {
 
 	private ArrayRealVector alpha;
 
+	private double cost;
+
+	private double gamma;
+
+	private double degree;
+
+	private String type;
+
+	private int[][] targetValues;
+
 	/** Train labels. */
 	// protected double[] m_class;
+	private double[][] support_vectors;
+
+	public void setCost() {
+		this.cost = 1;
+	}
+
+	public void setGamma() {
+		this.gamma = 1;
+	}
+
+	public void setDegree() {
+		this.degree = 1;
+	}
+
+	public void setType() {
+		this.type = "RBF";
+	}
+
+	public BlockRealMatrix getSVs() {
+		return this.SVs;
+	}
 
 	@Override
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
 		//PreprocessingStep1(trainingSet);
 		setup(trainingSet);
+		setKernelOptions("RBF", 1, 1, 0);
+		KernelsSetup(trainingSet, getSVs());
+
 		//findAlpha();
 		//computeBias();
 		//computeSizePredictor();
@@ -156,10 +196,9 @@ public class RankSVM extends MultiLabelLearnerBase {
 		else
 			System.out.println("Different.");
 		System.out.println("OK");
-	
-		
+
 		// Chunk2
-		//int dim = SVs.length;
+		// int dim = SVs.length;
 		int[] Label_size = new int[numTraining];
 		int[] size_alpha = new int[numTraining];
 		ArrayList<ArrayList<Integer>> Label = new ArrayList<ArrayList<Integer>>();
@@ -169,7 +208,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 			Label.add(null);
 			not_Label.add(null);
 		}
-		
+
 		for (int i = 0; i < numTraining - ommited; i++) {
 			ArrayList<Integer> train_target_temp = new ArrayList<Integer>();
 			for (int j = 0; j < numClass; j++) {
@@ -183,16 +222,81 @@ public class RankSVM extends MultiLabelLearnerBase {
 			ArrayList<Integer> not_LabelTemp = new ArrayList<Integer>();
 			for (int l = 0; l < numClass; l++) {
 				if (train_target_temp.get(l) == 1) {
-						LabelTemp.add(l);
-						Label.set(i, LabelTemp);
-					} else {
-						not_LabelTemp.add(l);
-						not_Label.set(i, not_LabelTemp);
+					LabelTemp.add(l);
+					Label.set(i, LabelTemp);
+				} else {
+					not_LabelTemp.add(l);
+					not_Label.set(i, not_LabelTemp);
 				}
 			}
-			
+
 		}
 		System.out.println("OK Chunk2.");
+		double[][] SVsFinal = transposeMatrix(SVs);
+		this.support_vectors = SVsFinal;
+		this.targetValues = train_target;
+	}
+
+	// Chunk3
+	/*
+	 */
+	private void setKernelOptions(String str, double cost, double gamma,
+			double degree) {
+
+		this.cost = cost;
+		if (str.equals("RBF")) {
+			this.gamma = gamma;
+			this.type = "RBF";
+		} else if (str.equals("Poly")) {
+			this.degree = degree;
+			this.gamma = gamma;
+			this.type = "Polynomial";
+		} else {
+			this.type = "Linear";
+		}
+	}
+
+	private void KernelsSetup(MultiLabelInstances trainingSet, RealMatrix SVs) {
+
+		int numTraining = trainingSet.getNumInstances();
+		int numClass = trainingSet.getNumLabels();
+		double[][] kernel = new double[numTraining][numTraining];
+		// Initialize kernel with 0s.
+		for (double[] row : kernel)
+			Arrays.fill(row, (double) 0);
+		BlockRealMatrix SVs_copy = this.SVs;
+
+		if (this.type.equals("RBF")) {
+			for (int i = 0; i < numTraining; i++) {
+				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
+				for (int j = 0; j < numTraining; j++) {
+					RealVector colVectorTemp2 = SVs_copy.getColumnVector(j);
+					RealVector SubtractionTemp = colVectorTemp1.subtract(colVectorTemp2);
+					RealVector PowTemp = SubtractionTemp
+							.mapToSelf(new Power(2));
+					double sumTemp = StatUtils.sum(PowTemp.toArray());
+					//for (int k = 0; k < numClass; k++) {
+					//	sumTemp = sumTemp + PowTemp.getEntry(k);
+					//}
+					double MultTemp = (-this.gamma)*sumTemp;
+					double ExpTemp = FastMath.exp(MultTemp);
+					kernel[i][j] = ExpTemp;
+				}
+			}
+		}
+		RealMatrix RBFKernel =MatrixUtils.createRealMatrix(kernel);
+		System.out.println("OK RBF.");
+		
+	}
+
+
+
+	public static double[][] transposeMatrix(double[][] m) {
+		double[][] temp = new double[m[0].length][m.length];
+		for (int i = 0; i < m.length; i++)
+			for (int j = 0; j < m[0].length; j++)
+				temp[j][i] = m[i][j];
+		return temp;
 	}
 
 	private void trainingChunk1(int sizeAlphaSum){
