@@ -8,6 +8,8 @@ import java.util.stream.IntStream;
 
 import org.apache.commons.math.linear.MatrixUtils;
 import org.apache.commons.math.linear.RealMatrix;
+import org.apache.commons.math3.linear.ArrayRealVector;
+import org.apache.commons.math3.linear.BlockRealMatrix;
 
 import weka.classifiers.functions.SMO;
 import weka.core.Attribute;
@@ -190,6 +192,26 @@ public class RankSVM extends MultiLabelLearnerBase {
 		System.out.println("OK Chunk2.");
 	}
 
+	private void trainingChunk1(){
+		//%Begin training phase
+
+		int sizeAlphaSum = 0;
+		ArrayRealVector alpha = new ArrayRealVector(sizeAlphaSum, 0);
+
+		ArrayList<BlockRealMatrix> cValue = new ArrayList<BlockRealMatrix>();
+		//cValue.
+		int numClass = target.getColumnDimension();
+		for (int i = 0; i < numClass; i++){
+			BlockRealMatrix newAlpha = new BlockRealMatrix(numClass, numClass);
+			ArrayRealVector rowVector = new ArrayRealVector(sizeAlphaSum, 1);
+			newAlpha.setRowVector(i, rowVector);
+			ArrayRealVector columnVector = new ArrayRealVector(sizeAlphaSum, -1);
+			newAlpha.setColumnVector(i, columnVector);
+			cValue.add(newAlpha);
+		}
+	}
+	
+	
 	@Override
 	protected MultiLabelOutput makePredictionInternal(Instance instance)
 			throws Exception, InvalidDataException {
