@@ -2,7 +2,8 @@ package mlpms;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.stream.IntStream;
+import java.util.HashMap;
+import java.util.stream.DoubleStream;
 
 import mulan.classifier.InvalidDataException;
 import mulan.classifier.MultiLabelLearnerBase;
@@ -37,19 +38,21 @@ import weka.core.TechnicalInformation.Type;
 public class RankSVM extends MultiLabelLearnerBase {
 
 	/** Train_dataset. */
-	private MultiLabelInstances trainingSet;
+	//private MultiLabelInstances trainingSet;
 
 	/** Train_data (only features). */
-	private double[][] train_data;
+	//private double[][] train_data;
+	private BlockRealMatrix trainData;
 
 	/** Train labels. */
-	private double[][] train_target;
+	//private double[][] train_target;
+	private BlockRealMatrix trainTarget;
 
 	private BlockRealMatrix SVs;
 
 	private BlockRealMatrix target;
 
-	private ArrayList<BlockRealMatrix> cValue;
+//	private ArrayList<BlockRealMatrix> cValue;
 
 	private ArrayRealVector alpha;
 
@@ -59,9 +62,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 
 	private double degree;
 
-	private String type;
-
-	private int[][] targetValues;
+	enum KernelType{
+		LINEAR,
+		POLYNOMIAL,
+		RBF;
+	}
+	private KernelType kType;
 	
 	private double coefficient;
 
@@ -69,24 +75,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 	// protected double[] m_class;
 	private double[][] support_vectors;
 
-	public void setCost() {
+	public RankSVM(){
 		this.cost = 1;
-	}
-
-	public void setGamma() {
 		this.gamma = 1;
-	}
-
-	public void setDegree() {
 		this.degree = 1;
-	}
-
-	public void setCoefficient() {
 		this.coefficient = 1;
-	}
-	
-	public void setType() {
-		this.type = "Polynomial";
+		this.kType = KernelType.POLYNOMIAL;
 	}
 
 	public BlockRealMatrix getSVs() {
@@ -97,23 +91,27 @@ public class RankSVM extends MultiLabelLearnerBase {
 	protected void buildInternal(MultiLabelInstances trainingSet)
 			throws Exception {
 		//PreprocessingStep1(trainingSet);
-		setup(trainingSet);
+		HashMap<String, Object> alphas = setup(trainingSet);
 		//setKernelOptions("RBF", 1, 1, 0, 0);
 		//setKernelOptions("Polynomial", 1, 1, 1, 2);
 		KernelsSetup(trainingSet, getSVs());
 
-		//findAlpha();
+		ArrayRealVector sizeAlpha = (ArrayRealVector) alphas.get("sizeAlpha");
+		ArrayRealVector labelSize = (ArrayRealVector) alphas.get("labelSize");
+		ArrayList<ArrayRealVector> Label = (ArrayList<ArrayRealVector>) alphas.get("Label");
+		ArrayList<ArrayRealVector> notLabel = (ArrayList<ArrayRealVector>) alphas.get("notLabel");
+		findAlpha(sizeAlpha, labelSize, Label, notLabel);
 		//computeBias();
 		//computeSizePredictor();
 	}
 	
 	
 
-	void setup(MultiLabelInstances trainingSet) {
+	HashMap<String, Object> setup(MultiLabelInstances trainingSet) {
 		// Preprocessing - Initialize support vectors & targets (labels)
 
 		int[] labelIndices = trainingSet.getLabelIndices();
-		// ArrayList labelIndices = new ArrayList(Arrays.asList(tempLabels));
+		
 		int numTraining = trainingSet.getNumInstances();
 		int numClass = trainingSet.getNumLabels();
 
@@ -122,17 +120,19 @@ public class RankSVM extends MultiLabelLearnerBase {
 		int numFeatures = numAttr - numClass;
 
 		SVs = new BlockRealMatrix(numTraining, numFeatures);
-		target = new BlockRealMatrix(numTraining, numClass);
+		target = new BlockRealMatrix(numClass, numTraining);
+		this.trainData = new BlockRealMatrix(numTraining, numFeatures);
+		this.trainTarget = new BlockRealMatrix(numClass, numTraining);
 		int omitted = 0;
 		for (int i = 0; i < numTraining; i++) {
 			Instance inst = insts.get(i);
 			double sumTemp = 0;
 			ArrayRealVector SVRow = new ArrayRealVector(numFeatures);
-			ArrayRealVector targetRow = new ArrayRealVector(numClass);
+			ArrayRealVector targetColumn = new ArrayRealVector(numClass);
 			int labelsChecked = 0;
 			for (int attr = 0; attr < numAttr; attr++) {
 				if (labelIndices[labelsChecked] == attr) {
-					targetRow.setEntry(labelsChecked, inst.value(attr));
+					targetColumn.setEntry(labelsChecked, inst.value(attr));
 					sumTemp += inst.value(attr);
 					labelsChecked++;
 				} else
@@ -140,178 +140,92 @@ public class RankSVM extends MultiLabelLearnerBase {
 			}
 			// filter out every instance that contains all or none of the labels
 			// (uninformative)
+			this.trainData.setRowVector(i, SVRow);
+			this.trainTarget.setColumnVector(i, targetColumn);
 			if ((sumTemp != numClass) && (sumTemp != -numClass)) {
 				SVs.setRowVector(i-omitted, SVRow);
-				target.setRowVector(i-omitted, targetRow);
+				target.setColumnVector(i-omitted, targetColumn);
 			} else
 				omitted++;
 		}
 		this.SVs.getSubMatrix(0, numTraining - omitted - 1, 0, numFeatures - 1);
 		this.SVs = this.SVs.transpose(); //numInstances x numFeatures --> numFeatures x numInstances
-		this.target.getSubMatrix(0, numTraining - omitted - 1, 0, numClass - 1);
+		this.target.getSubMatrix(0, numClass - 1, 0, numTraining - omitted - 1);
 		
 		// Chunk2
-		double[] Label_size = new double[numTraining];
-		double[] size_alpha = new double[numTraining];
-		ArrayList<ArrayList<Double>> Label = new ArrayList<ArrayList<Double>>();
-		ArrayList<ArrayList<Double>> not_Label = new ArrayList<ArrayList<Double>>();
+
+		ArrayRealVector labelSize = new ArrayRealVector(numTraining);
+		ArrayRealVector sizeAlpha = new ArrayRealVector(numTraining);
+		
+		ArrayList<ArrayRealVector> Label = new ArrayList<ArrayRealVector>();
+		ArrayList<ArrayRealVector> notLabel = new ArrayList<ArrayRealVector>();
 		/* Initialize ArrayList of ArrayLists to have specific number of rows. */
-		for (int i = 0; i < numTraining - omitted; i++) {
-			Label.add(null);
-			not_Label.add(null);
-		}
 
 		for (int i = 0; i < numTraining - omitted; i++) {
-			ArrayList<Double> train_target_temp = new ArrayList<Double>();
-			for (int j = 0; j < numClass; j++) {
-				train_target_temp.add(train_target[i][j]); // temp label vector
-			}
-			Label_size[i] = train_target_temp.stream()
-					.mapToDouble(Double::intValue).sum();
-			size_alpha[i] = Label_size[i] * (numClass - Label_size[i]);
+			ArrayRealVector trainLabelRow = (ArrayRealVector) trainTarget.getColumnVector(i); // temp label vector
+			double labelSum = DoubleStream.of(trainLabelRow.toArray()).sum();
+			labelSize.setEntry(i, labelSum);
+			sizeAlpha.setEntry(i, labelSum * (numClass - labelSum));
 
 			ArrayList<Double> LabelTemp = new ArrayList<Double>();
-			ArrayList<Double> not_LabelTemp = new ArrayList<Double>();
+			ArrayList<Double> notLabelTemp = new ArrayList<Double>();
 			for (int l = 0; l < numClass; l++) {
-				if (train_target_temp.get(l) == 1) {
+				if (trainLabelRow.getEntry(l) == 1)
 					LabelTemp.add((double) l);
-					Label.set(i, LabelTemp);
-				} else {
-					not_LabelTemp.add((double) l);
-					not_Label.set(i, not_LabelTemp);
-				}
+				else
+					notLabelTemp.add((double) l);
 			}
+			
+			Double[] labelArr = new Double[LabelTemp.size()];
+			labelArr = LabelTemp.toArray(labelArr);
+			Label.add(new ArrayRealVector(labelArr));
 
+			Double[] notLabelArr = new Double[notLabelTemp.size()];
+			notLabelArr = notLabelTemp.toArray(notLabelArr);
+			notLabel.add(new ArrayRealVector(notLabelArr));
 		}
-		ArrayRealVector sizeAlpha = new ArrayRealVector(size_alpha);
-		ArrayRealVector labelSize = new ArrayRealVector(Label_size);
+		
+		HashMap<String, Object> results = new HashMap<String, Object>();
+		results.put("sizeAlpha", sizeAlpha);
+		results.put("labelSize", labelSize);
+		results.put("Label", Label);
+		results.put("notLabel", notLabel);
+		
+		return results;
 	}
 
-	
-	
-	/*private void PreprocessingStep1(MultiLabelInstances trainingSet) {
-
-		int[] labelIndices = trainingSet.getLabelIndices();
-		// dataset preprocessing
-		int numTraining = trainingSet.getNumInstances();
-		int numClass = trainingSet.getNumLabels();
-		int numAttributes = trainingSet.getFeatureIndices().length;
-		double[][] SVsInit = new double[numTraining][numAttributes];
-		int[][] train_targetInit = new int[numTraining][numClass];
-
-		int count = 0;
-		int obs = 0;
-		int ommited = 0;
-		for (Instance inst : trainingSet.getDataSet()) {
-			int[] labels = new int[labelIndices.length];
-			for (int i = 0; i < labelIndices.length; i++) {
-				labels[i] = (int) (inst.value(labelIndices[i]));
-			}
-			int sumTemp = IntStream.of(labels).sum();
-			if ((sumTemp != numClass) && (sumTemp != -numClass)) {
-				double[] tempMat = new double[numAttributes];
-				System.arraycopy(inst.toDoubleArray(), 0, tempMat, 0,
-						numAttributes);
-				for (int k = 0; k < numAttributes; k++) {
-					SVsInit[obs][k] = tempMat[k];
-				}
-				for (int l = 0; l < numLabels; l++) {
-					train_targetInit[obs][l] = labels[l];
-				}
-				obs++;
-			} else {
-				ommited++;
-			}
-			count++;
-		}
-		double[][] SVs = new double[numTraining - ommited][numAttributes];
-		int[][] train_target = new int[numTraining - ommited][numClass];
-		for (int i = 0; i < numTraining - ommited; i++) {
-			System.arraycopy(SVsInit[i], 0, SVs[i], 0, numAttributes);
-			System.arraycopy(train_targetInit[i], 0, train_target[i], 0,
-					numClass);
-		}
-		if (Arrays.deepEquals(SVsInit, SVs))
-			System.out.println("Equal.");
-		else
-			System.out.println("Different.");
-		if (Arrays.deepEquals(train_targetInit, train_target))
-			System.out.println("Equal.");
-		else
-			System.out.println("Different.");
-		System.out.println("OK");
-
-		// Chunk2
-		// int dim = SVs.length;
-		/*int[] Label_size = new int[numTraining];
-		int[] size_alpha = new int[numTraining];
-		ArrayList<ArrayList<Integer>> Label = new ArrayList<ArrayList<Integer>>();
-		ArrayList<ArrayList<Integer>> not_Label = new ArrayList<ArrayList<Integer>>();
-		/* Initialize ArrayList of ArrayLists to have specific number of rows. */
-		/*for (int i = 0; i < numTraining - ommited; i++) {
-			Label.add(null);
-			not_Label.add(null);
-		}
-
-		for (int i = 0; i < numTraining - ommited; i++) {
-			ArrayList<Integer> train_target_temp = new ArrayList<Integer>();
-			for (int j = 0; j < numClass; j++) {
-				train_target_temp.add(train_target[i][j]); // temp label vector
-			}
-			Label_size[i] = train_target_temp.stream()
-					.mapToInt(Integer::intValue).sum();
-			size_alpha[i] = Label_size[i] * (numClass - Label_size[i]);
-
-			ArrayList<Integer> LabelTemp = new ArrayList<Integer>();
-			ArrayList<Integer> not_LabelTemp = new ArrayList<Integer>();
-			for (int l = 0; l < numClass; l++) {
-				if (train_target_temp.get(l) == 1) {
-					LabelTemp.add(l);
-					Label.set(i, LabelTemp);
-				} else {
-					not_LabelTemp.add(l);
-					not_Label.set(i, not_LabelTemp);
-				}
-			}
-
-		}
-		System.out.println("OK Chunk2.");
-		double[][] SVsFinal = transposeMatrix(SVs);
-		this.support_vectors = SVsFinal;
-		this.targetValues = train_target;\
-		*/
-	//}
-
-	
 	// Chunk3
-	private void setKernelOptions(String str, double cost, double gamma,
+	void setKernelOptions(KernelType kType, double cost, double gamma,
 			double coefficient, double degree) {
 
 		this.cost = cost;
-		if (str.equals("RBF")) {
-			this.gamma = gamma;
-			this.type = "RBF";
-		} else if (str.equals("Poly")) {
+		this.kType = kType;
+		switch(kType){
+		case POLYNOMIAL:
 			this.degree = degree;
 			this.gamma = gamma;
 			this.coefficient = coefficient;
-			this.type = "Polynomial";
-		} else {
-			this.type = "Linear";
+			break;
+		case RBF:
+			this.gamma = gamma;
+			break;
+		default:
+			break;
 		}
 	}
 
-	private void KernelsSetup(MultiLabelInstances trainingSet, RealMatrix SVs) {
+
+	private RealMatrix KernelsSetup(MultiLabelInstances trainingSet, RealMatrix SVs) {
 
 		int numTraining = trainingSet.getNumInstances();
-		int numClass = trainingSet.getNumLabels();
 		double[][] kernel = new double[numTraining][numTraining];
 		// Initialize kernel with 0s.
 		for (double[] row : kernel)
 			Arrays.fill(row, (double) 0);
 		BlockRealMatrix SVs_copy = this.SVs;
 
-		if (this.type.equals("RBF")) {
+		RealMatrix Kernel = null;
+		if (this.kType == KernelType.RBF) {
 			for (int i = 0; i < numTraining; i++) {
 				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
 				for (int j = 0; j < numTraining; j++) {
@@ -325,74 +239,93 @@ public class RankSVM extends MultiLabelLearnerBase {
 					kernel[i][j] = ExpTemp;
 				}
 			}
-			RealMatrix Kernel =MatrixUtils.createRealMatrix(kernel);
+			Kernel = MatrixUtils.createRealMatrix(kernel);
 			System.out.println("OK RBF.");
 		}
-		else if (this.type.equals("Polynomial")) {
+		else if (this.kType == KernelType.POLYNOMIAL) {
 			for (int i = 0; i < numTraining; i++) {
 				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
 				for (int j = 0; j < numTraining; j++) {
 					RealVector colVectorTemp2 = SVs_copy.getColumnVector(j);
 					double MultTemp1 = colVectorTemp1.dotProduct(colVectorTemp2);
-					double MultTemp2 = MultTemp1*(this.gamma);
+					double MultTemp2 = MultTemp1 * (this.gamma);
 				    double AddTemp = MultTemp2 + this.coefficient;
 				    double PowTemp = Math.pow(AddTemp, this.degree);
 					kernel[i][j] = PowTemp;
 				}
 			}
-			RealMatrix Kernel =MatrixUtils.createRealMatrix(kernel);
+			Kernel = MatrixUtils.createRealMatrix(kernel);
 			System.out.println("OK Polynomial.");
-		}else if (this.type.equals("Linear")) {
+		}
+		else if (this.kType == KernelType.LINEAR) {
 			for (int i = 0; i < numTraining; i++) {
 				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
 				for (int j = 0; j < numTraining; j++) {
 					RealVector colVectorTemp2 = SVs_copy.getColumnVector(j);
 					double MultTemp1 = colVectorTemp1.dotProduct(colVectorTemp2);
-					kernel[i][j] = MultTemp1 ;
+					kernel[i][j] = MultTemp1;
 				}
 			}
-			RealMatrix Kernel =MatrixUtils.createRealMatrix(kernel);
+			Kernel = MatrixUtils.createRealMatrix(kernel);
 			System.out.println("OK Linear.");
 		}
-		
+		return Kernel;
 	}
 
 
-
-	/*public static double[][] transposeMatrix(double[][] m) {
-		double[][] temp = new double[m[0].length][m.length];
-		for (int i = 0; i < m.length; i++)
-			for (int j = 0; j < m[0].length; j++)
-				temp[j][i] = m[i][j];
-		return temp;
-	}*/
-
-	private void trainingChunk1(int sizeAlphaSum){
+	private ArrayList<BlockRealMatrix> trainingChunk1(){
 		//%Begin training phase
+		ArrayList<BlockRealMatrix> cValue = new ArrayList<BlockRealMatrix>();
 
-		this.alpha = new ArrayRealVector(sizeAlphaSum, 0);
-
-		this.cValue = new ArrayList<BlockRealMatrix>();
-		//cValue.
-		int numClass = target.getColumnDimension();
+		int numClass = target.getRowDimension();
 		for (int i = 0; i < numClass; i++){
 			BlockRealMatrix newAlpha = new BlockRealMatrix(numClass, numClass);
-			ArrayRealVector rowVector = new ArrayRealVector(sizeAlphaSum, 1);
+			ArrayRealVector rowVector = new ArrayRealVector(numClass, 1);
 			newAlpha.setRowVector(i, rowVector);
-			ArrayRealVector columnVector = new ArrayRealVector(sizeAlphaSum, -1);
+			ArrayRealVector columnVector = new ArrayRealVector(numClass, -1);
 			newAlpha.setColumnVector(i, columnVector);
-			this.cValue.add(newAlpha);
+			cValue.add(newAlpha);
 		}
 		System.out.println("OK training chunk 1.");
+		return cValue;
 	}
 	
 	private void findAlpha(ArrayRealVector sizeAlpha, ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel){
 		boolean continuing = true;
-		int iteration = 0;
-	    System.out.println("current iteration: " + iteration);
-		while (continuing){
-		    iteration++;
-			computeBeta(sizeAlpha, labelSize, Label, notLabel);
+
+		ArrayList<BlockRealMatrix> cValue = trainingChunk1();
+
+		int sizeAlphaSum = (int) DoubleStream.of(sizeAlpha.toArray()).map(Math::round).sum();		
+		this.alpha = new ArrayRealVector(sizeAlphaSum, 0);
+	    int numClass = this.trainTarget.getRowDimension();
+		int numTraining = this.trainTarget.getColumnDimension();
+		for(int iteration = 1; continuing; iteration++){
+		    System.out.println("current iteration: " + iteration);
+
+		    //	computeBeta(sizeAlpha, labelSize, Label, notLabel);
+			BlockRealMatrix beta = new BlockRealMatrix(numClass, numTraining);
+			for (int k = 0; k < numClass; k++){
+				for (int i = 0; i < numTraining; i++){
+					double sum = i > 0 ? StatUtils.sum(sizeAlpha.getSubVector(0, i).toArray()) : 0;
+					assert labelSize.getEntry(i) == Label.get(i).getDimension();
+					assert numClass - labelSize.getEntry(i) == notLabel.get(i).getDimension();
+					for (int m = 0; m < labelSize.getEntry(i); m++){
+						for (int n = 0; n < numClass - labelSize.getEntry(i); n++){
+							int index = new Double(sum + m * (numClass - labelSize.getEntry(i)) + n + 1).intValue();
+							System.out.println(k + " + " + i + " + " + m + " + " + n + " + " + index);
+							double oldBetaVal = beta.getEntry(k, i);
+							double alphaVal = alpha.getEntry(index);
+							int labelIndex = new Double(Label.get(i).getEntry(m)).intValue();
+							int notLabelIndex = new Double(notLabel.get(i).getEntry(n)).intValue();
+							double cv = cValue.get(k).getEntry(labelIndex, notLabelIndex);
+							double newBetaVal = oldBetaVal + cv * alphaVal;
+							beta.setEntry(k, i, newBetaVal);
+						}
+					}
+				}
+			}
+		    
+		    
 		//	computeGradient();
 		//	findAlphaNew();
 		//	findLambda();
@@ -401,30 +334,6 @@ public class RankSVM extends MultiLabelLearnerBase {
 	}
 	
 	
-	private void computeBeta(ArrayRealVector sizeAlpha, ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel){
-	    //Beta=zeros(num_class,num_training);
-		int numClass = this.trainingSet.getNumLabels();
-		int numTraining = this.trainingSet.getNumInstances();
-		BlockRealMatrix beta = new BlockRealMatrix(numClass, numTraining);
-		for (int k = 0; k < numClass; k++){
-			for (int i = 0; i < numTraining; i++){
-				double sum = StatUtils.sum(sizeAlpha.getSubVector(0, i-1).toArray());
-				for (int m = 0; m < labelSize.getEntry(i); m++){
-					for (int n = 0; n < numClass - labelSize.getEntry(i); n++){
-						int index = new Double(sum + (m - 1) * (numClass - labelSize.getEntry(i)) + n).intValue();
-						double oldBetaVal = beta.getEntry(k, i);
-						double alphaVal = alpha.getEntry(index);
-						int labelIndex = new Double(Label.get(i).getEntry(m)).intValue();
-						int notLabelIndex = new Double(notLabel.get(i).getEntry(n)).intValue();
-						double cv = cValue.get(k).getEntry(labelIndex, notLabelIndex);
-						double newBetaVal = oldBetaVal + cv * alphaVal;
-						beta.setEntry(k, i, newBetaVal);
-					}
-				}
-			}
-		}
-	}
-
 	private void computeBias(){
 		//stub
 	}
