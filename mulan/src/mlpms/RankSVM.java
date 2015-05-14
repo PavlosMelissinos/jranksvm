@@ -314,7 +314,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 							int index = new Double(sum + m * (numClass - labelSize.getEntry(i)) + n + 1).intValue();
 							System.out.println(k + " + " + i + " + " + m + " + " + n + " + " + index);
 							double oldBetaVal = beta.getEntry(k, i);
-							double alphaVal = alpha.getEntry(index);
+							double alphaVal = alpha.getEntry(index - 1);
 							int labelIndex = new Double(Label.get(i).getEntry(m)).intValue();
 							int notLabelIndex = new Double(notLabel.get(i).getEntry(n)).intValue();
 							double cv = cValue.get(k).getEntry(labelIndex, notLabelIndex);
