@@ -94,13 +94,13 @@ public class RankSVM extends MultiLabelLearnerBase {
 		HashMap<String, Object> alphas = setup(trainingSet);
 		//setKernelOptions("RBF", 1, 1, 0, 0);
 		//setKernelOptions("Polynomial", 1, 1, 1, 2);
-		KernelsSetup(trainingSet, getSVs());
+		BlockRealMatrix kernel = KernelsSetup(trainingSet, getSVs());
 
 		ArrayRealVector sizeAlpha = (ArrayRealVector) alphas.get("sizeAlpha");
 		ArrayRealVector labelSize = (ArrayRealVector) alphas.get("labelSize");
 		ArrayList<ArrayRealVector> Label = (ArrayList<ArrayRealVector>) alphas.get("Label");
 		ArrayList<ArrayRealVector> notLabel = (ArrayList<ArrayRealVector>) alphas.get("notLabel");
-		findAlpha(sizeAlpha, labelSize, Label, notLabel);
+		findAlpha(sizeAlpha, labelSize, Label, notLabel, kernel);
 		//computeBias();
 		//computeSizePredictor();
 	}
@@ -215,16 +215,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 	}
 
 
-	private RealMatrix KernelsSetup(MultiLabelInstances trainingSet, RealMatrix SVs) {
+	private BlockRealMatrix KernelsSetup(MultiLabelInstances trainingSet, RealMatrix SVs) {
 
 		int numTraining = trainingSet.getNumInstances();
-		double[][] kernel = new double[numTraining][numTraining];
-		// Initialize kernel with 0s.
-		for (double[] row : kernel)
-			Arrays.fill(row, (double) 0);
+		BlockRealMatrix kernel = new BlockRealMatrix(numTraining, numTraining);
 		BlockRealMatrix SVs_copy = this.SVs;
 
-		RealMatrix Kernel = null;
 		if (this.kType == KernelType.RBF) {
 			for (int i = 0; i < numTraining; i++) {
 				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
@@ -236,10 +232,9 @@ public class RankSVM extends MultiLabelLearnerBase {
 					double sumTemp = StatUtils.sum(PowTemp.toArray());
 					double MultTemp = (-this.gamma)*sumTemp;
 					double ExpTemp = FastMath.exp(MultTemp);
-					kernel[i][j] = ExpTemp;
+					kernel.setEntry(i, j, ExpTemp);
 				}
 			}
-			Kernel = MatrixUtils.createRealMatrix(kernel);
 			System.out.println("OK RBF.");
 		}
 		else if (this.kType == KernelType.POLYNOMIAL) {
@@ -251,10 +246,9 @@ public class RankSVM extends MultiLabelLearnerBase {
 					double MultTemp2 = MultTemp1 * (this.gamma);
 				    double AddTemp = MultTemp2 + this.coefficient;
 				    double PowTemp = Math.pow(AddTemp, this.degree);
-					kernel[i][j] = PowTemp;
+				    kernel.setEntry(i, j, PowTemp);
 				}
 			}
-			Kernel = MatrixUtils.createRealMatrix(kernel);
 			System.out.println("OK Polynomial.");
 		}
 		else if (this.kType == KernelType.LINEAR) {
@@ -263,13 +257,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 				for (int j = 0; j < numTraining; j++) {
 					RealVector colVectorTemp2 = SVs_copy.getColumnVector(j);
 					double MultTemp1 = colVectorTemp1.dotProduct(colVectorTemp2);
-					kernel[i][j] = MultTemp1;
+				    kernel.setEntry(i, j, MultTemp1);
 				}
 			}
-			Kernel = MatrixUtils.createRealMatrix(kernel);
 			System.out.println("OK Linear.");
 		}
-		return Kernel;
+		return kernel;
 	}
 
 
@@ -290,7 +283,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return cValue;
 	}
 	
-	private void findAlpha(ArrayRealVector sizeAlpha, ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel){
+	private void findAlpha(ArrayRealVector sizeAlpha, ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel, BlockRealMatrix kernel){
 		boolean continuing = true;
 
 		ArrayList<BlockRealMatrix> cValue = trainingChunk1();
@@ -312,7 +305,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 					for (int m = 0; m < labelSize.getEntry(i); m++){
 						for (int n = 0; n < numClass - labelSize.getEntry(i); n++){
 							int index = new Double(sum + m * (numClass - labelSize.getEntry(i)) + n + 1).intValue();
-							System.out.println(k + " + " + i + " + " + m + " + " + n + " + " + index);
+							//System.out.println(k + " + " + i + " + " + m + " + " + n + " + " + index);
 							double oldBetaVal = beta.getEntry(k, i);
 							double alphaVal = alpha.getEntry(index - 1);
 							int labelIndex = new Double(Label.get(i).getEntry(m)).intValue();
@@ -326,13 +319,28 @@ public class RankSVM extends MultiLabelLearnerBase {
 			}
 		    
 		    
-		//	computeGradient();
+		//	computeGradient
+		    
+		    BlockRealMatrix inner = beta.multiply(kernel); //inner = beta X kernel
+		    
+		    ArrayRealVector gradient = new ArrayRealVector(sizeAlphaSum);
+		    int index = 0;
+		    for (int i = 0; i < numTraining; i++){
+		    	for (int m = 0; m < labelSize.getEntry(i); m++){
+		    		int labelIndex = new Double(Label.get(i).getEntry(m)).intValue();
+		    		for (int n = 0; n < numClass - labelSize.getEntry(i); n++){
+		    			int notLabelIndex = new Double(notLabel.get(i).getEntry(n)).intValue();
+		    			double temp = inner.getEntry(labelIndex, i) - inner.getEntry(notLabelIndex, i) - 1;
+		    			gradient.setEntry(index, temp);
+		    		}
+		    	}
+		    }
+			
 		//	findAlphaNew();
 		//	findLambda();
 		//	continuing = testConvergence();
 		}
 	}
-	
 	
 	private void computeBias(){
 		//stub
