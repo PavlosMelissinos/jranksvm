@@ -10,12 +10,25 @@ import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.MultiLabelOutput;
 import mulan.data.MultiLabelInstances;
 
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.stat.descriptive.summary.Sum;
+import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.function.Power;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
 import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
+import org.apache.commons.math3.optim.MaxEval;
+import org.apache.commons.math3.optim.OptimizationData;
+import org.apache.commons.math3.optim.nonlinear.scalar.GoalType;
+import org.apache.commons.math3.optim.nonlinear.scalar.noderiv.SimplexOptimizer;
+import org.apache.commons.math3.optim.univariate.BrentOptimizer;
+import org.apache.commons.math3.optim.univariate.SearchInterval;
+import org.apache.commons.math3.optim.univariate.UnivariateObjectiveFunction;
+import org.apache.commons.math3.optim.univariate.UnivariateOptimizer;
+import org.apache.commons.math3.optim.univariate.UnivariatePointValuePair;
 import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.util.FastMath;
 
@@ -41,25 +54,15 @@ public class RankSVM extends MultiLabelLearnerBase {
 	//private MultiLabelInstances trainingSet;
 
 	/** Train_data (only features). */
-	//private double[][] train_data;
 	private BlockRealMatrix trainData;
 
 	/** Train labels. */
-	//private double[][] train_target;
 	private BlockRealMatrix trainTarget;
-
 	private BlockRealMatrix SVs;
-
 	private BlockRealMatrix target;
-
-//	private ArrayList<BlockRealMatrix> cValue;
-
 	private ArrayRealVector alpha;
-
 	private double cost;
-
 	private double gamma;
-
 	private double degree;
 
 	enum KernelType{
@@ -300,8 +303,6 @@ public class RankSVM extends MultiLabelLearnerBase {
 			for (int k = 0; k < numClass; k++){
 				for (int i = 0; i < numTraining; i++){
 					double sum = i > 0 ? StatUtils.sum(sizeAlpha.getSubVector(0, i).toArray()) : 0;
-					assert labelSize.getEntry(i) == Label.get(i).getDimension();
-					assert numClass - labelSize.getEntry(i) == notLabel.get(i).getDimension();
 					for (int m = 0; m < labelSize.getEntry(i); m++){
 						for (int n = 0; n < numClass - labelSize.getEntry(i); n++){
 							int index = new Double(sum + m * (numClass - labelSize.getEntry(i)) + n + 1).intValue();
@@ -331,15 +332,33 @@ public class RankSVM extends MultiLabelLearnerBase {
 		    		for (int n = 0; n < numClass - labelSize.getEntry(i); n++){
 		    			int notLabelIndex = new Double(notLabel.get(i).getEntry(n)).intValue();
 		    			double temp = inner.getEntry(labelIndex, i) - inner.getEntry(notLabelIndex, i) - 1;
-		    			gradient.setEntry(index, temp);
+		    			gradient.setEntry(index++, temp);
 		    		}
 		    	}
 		    }
-			
-		//	findAlphaNew();
-		//	findLambda();
-		//	continuing = testConvergence();
+
+			//	findAlphaNew();
+
+		    
+		    ArrayRealVector Alpha_new = null;
+		    
+			findLambda(Alpha_new, cValue, kernel, numTraining, numClass, Label, notLabel, labelSize, sizeAlpha);
+		    
+		    //continuing = testConvergence();
 		}
+	}
+	
+	double findLambda(ArrayRealVector Alpha_new, ArrayList<BlockRealMatrix> cValue, 
+			BlockRealMatrix kernel, int numTraining, int numClass, ArrayList<ArrayRealVector> Label, 
+			ArrayList<ArrayRealVector> notLabel, ArrayRealVector labelSize, ArrayRealVector sizeAlpha){
+	    NegDualFuncUniWrapper f = new NegDualFuncUniWrapper(alpha, Alpha_new, cValue, kernel, 
+	    		numTraining, numClass, Label, notLabel, labelSize, sizeAlpha);
+	    BrentOptimizer solver = new BrentOptimizer(1e-10, 1e-14);
+
+		UnivariatePointValuePair solution = solver.optimize(new MaxEval(200), 
+				new UnivariateObjectiveFunction(f), GoalType.MINIMIZE, new SearchInterval(0, 1));
+		double lambda = solution.getPoint();
+		return lambda;
 	}
 	
 	private void computeBias(){
