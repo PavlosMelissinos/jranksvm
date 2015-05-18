@@ -53,15 +53,25 @@ public class RankSVM extends MultiLabelLearnerBase {
 	// private MultiLabelInstances trainingSet;
 
 	/** Train_data (only features). */
+	// private double[][] train_data;
 	private BlockRealMatrix trainData;
 
 	/** Train labels. */
+	// private double[][] train_target;
 	private BlockRealMatrix trainTarget;
+
 	private BlockRealMatrix SVs;
+
 	private BlockRealMatrix target;
+
+	// private ArrayList<BlockRealMatrix> cValue;
+
 	private ArrayRealVector alpha;
+
 	private double cost;
+
 	private double gamma;
+
 	private double degree;
 	private double lambdaTol = 1e-6;
 	private double normTol = 1e-4;
@@ -330,8 +340,10 @@ public class RankSVM extends MultiLabelLearnerBase {
 				}
 			}
 
-			// Compute gradient
-			BlockRealMatrix inner = beta.multiply(kernel); // inner = beta X
+		    
+		//	computeGradient
+		    
+		    BlockRealMatrix inner = beta.multiply(kernel); //inner = beta X kernel
 															// kernel
 			ArrayRealVector gradient = new ArrayRealVector(sizeAlphaSum);
 			int index = 0;
@@ -366,7 +378,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 			ArrayList<ArrayRealVector> Label,
 			ArrayList<ArrayRealVector> notLabel,
 			ArrayList<BlockRealMatrix> cValue, ArrayRealVector sizeAlpha) {
-		// findAlphaNew();
+			// findAlphaNew();
 
 		BlockRealMatrix Aeq = new BlockRealMatrix(numClass, sizeAlphaSum);
 
@@ -407,7 +419,6 @@ public class RankSVM extends MultiLabelLearnerBase {
 		double[] beqArray = beq.toArray();
 		LinearObjectiveFunction f = new LinearObjectiveFunction(gradientArray, 0);
 		Collection<LinearConstraint> constraints = new ArrayList<LinearConstraint>();
-		
 		
 		// Constraint Aeq*x=beq
 		for (int i = 0; i < Aeq.getRowDimension(); i++) {
@@ -456,7 +467,6 @@ public class RankSVM extends MultiLabelLearnerBase {
 				cValue, kernel, numTraining, numClass, Label, notLabel,
 				labelSize, sizeAlpha);
 		BrentOptimizer solver = new BrentOptimizer(1e-10, 1e-14);
-
 		UnivariatePointValuePair solution = solver.optimize(new MaxEval(200),
 				new UnivariateObjectiveFunction(f), GoalType.MINIMIZE,
 				new SearchInterval(0, 1));
@@ -473,7 +483,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 			continuing = false;
 			System.out.println("program terminated normally");
 		} else if (iteration >= maxIter) {
-			continuing = false;
+		    continuing = false;
 			System.err
 					.println("maximum number of iterations reached, procedure not convergent");
 		} else
