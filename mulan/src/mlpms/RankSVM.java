@@ -64,6 +64,9 @@ public class RankSVM extends MultiLabelLearnerBase {
 	private double cost;
 	private double gamma;
 	private double degree;
+	private double lambdaTol = 1e-6;
+	private double normTol = 1e-4;
+	private int maxIter = 50;
 
 	enum KernelType{
 		LINEAR,
@@ -342,9 +345,9 @@ public class RankSVM extends MultiLabelLearnerBase {
 		    
 		    ArrayRealVector Alpha_new = null;
 		    
-			findLambda(Alpha_new, cValue, kernel, numTraining, numClass, Label, notLabel, labelSize, sizeAlpha);
+			double lambda = findLambda(Alpha_new, cValue, kernel, numTraining, numClass, Label, notLabel, labelSize, sizeAlpha);
 		    
-		    //continuing = testConvergence();
+		    continuing = testConvergence(lambda, iteration, Alpha_new);
 		}
 	}
 	
@@ -359,6 +362,26 @@ public class RankSVM extends MultiLabelLearnerBase {
 				new UnivariateObjectiveFunction(f), GoalType.MINIMIZE, new SearchInterval(0, 1));
 		double lambda = solution.getPoint();
 		return lambda;
+	}
+	
+	private boolean testConvergence(double lambda, int iteration, ArrayRealVector Alpha_new){
+		boolean continuing = true;
+		
+		double dist = Alpha_new.getDistance(alpha);
+		if (Math.abs(lambda) <= lambdaTol || lambda * dist <= normTol){
+	        continuing=false;
+	        System.out.println("program terminated normally");
+		}
+	    else{
+	        if(iteration >= maxIter){
+	            continuing = false;
+	            System.err.println("maximum number of iterations reached, procedure not convergent");
+	        }
+	        else
+	            //Alpha=Alpha+Lambda*(Alpha_new-Alpha);
+	            alpha = alpha.add(Alpha_new.subtract(alpha).mapMultiplyToSelf(lambda));
+	    }
+		return continuing;
 	}
 	
 	private void computeBias(){
