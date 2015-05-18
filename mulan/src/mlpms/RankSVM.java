@@ -11,6 +11,10 @@ import mulan.classifier.MultiLabelLearnerBase;
 import mulan.classifier.MultiLabelOutput;
 import mulan.data.MultiLabelInstances;
 
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.stat.descriptive.summary.Sum;
+import org.apache.commons.math3.analysis.UnivariateFunction;
 import org.apache.commons.math3.analysis.function.Power;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
@@ -400,6 +404,19 @@ public class RankSVM extends MultiLabelLearnerBase {
 						UB.addToEntry(counter, temp);
 					}
 				}
+	}
+	
+	double findLambda(ArrayRealVector Alpha_new, ArrayList<BlockRealMatrix> cValue, 
+			BlockRealMatrix kernel, int numTraining, int numClass, ArrayList<ArrayRealVector> Label, 
+			ArrayList<ArrayRealVector> notLabel, ArrayRealVector labelSize, ArrayRealVector sizeAlpha){
+	    NegDualFuncUniWrapper f = new NegDualFuncUniWrapper(alpha, Alpha_new, cValue, kernel, 
+	    		numTraining, numClass, Label, notLabel, labelSize, sizeAlpha);
+	    BrentOptimizer solver = new BrentOptimizer(1e-10, 1e-14);
+
+		UnivariatePointValuePair solution = solver.optimize(new MaxEval(200), 
+				new UnivariateObjectiveFunction(f), GoalType.MINIMIZE, new SearchInterval(0, 1));
+		double lambda = solution.getPoint();
+		return lambda;
 			}
 
 			System.out.println("Lilia: ");
