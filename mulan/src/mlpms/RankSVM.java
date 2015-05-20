@@ -18,6 +18,7 @@ import org.apache.commons.math3.linear.RealVector;
 import org.apache.commons.math3.optim.MaxEval;
 import org.apache.commons.math3.optim.MaxIter;
 import org.apache.commons.math3.optim.PointValuePair;
+import org.apache.commons.math3.optim.SimpleBounds;
 import org.apache.commons.math3.optim.linear.LinearConstraint;
 import org.apache.commons.math3.optim.linear.LinearConstraintSet;
 import org.apache.commons.math3.optim.linear.LinearObjectiveFunction;
@@ -31,6 +32,13 @@ import org.apache.commons.math3.optim.univariate.UnivariatePointValuePair;
 import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.util.FastMath;
 
+import scpsolver.constraints.LinearBiggerThanEqualsConstraint;
+import scpsolver.constraints.LinearEqualsConstraint;
+import scpsolver.constraints.LinearSmallerThanEqualsConstraint;
+import scpsolver.lpsolver.LinearProgramSolver;
+import scpsolver.lpsolver.SolverFactory;
+import scpsolver.problems.LinearProgram;
+import scpsolver.util.SparseVector;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.TechnicalInformation;
@@ -378,84 +386,87 @@ public class RankSVM extends MultiLabelLearnerBase {
 			ArrayList<ArrayRealVector> Label,
 			ArrayList<ArrayRealVector> notLabel,
 			ArrayList<BlockRealMatrix> cValue, ArrayRealVector sizeAlpha) {
-			// findAlphaNew();
 
 		BlockRealMatrix Aeq = new BlockRealMatrix(numClass, sizeAlphaSum);
 
 		for (int k = 0; k < numClass; k++) {
-			int counter = -1;
+			int counter = 0;
 			for (int i = 0; i < numTraining; i++) {
 				for (int m = 0; m < labelSize.getEntry(i); m++) {
 					for (int n = 0; n < numClass - labelSize.getEntry(i); n++) {
-						counter++;
 						double temp1 = Label.get(i).getEntry(m);
 						double temp2 = notLabel.get(i).getEntry(n);
 						double temp = cValue.get(k).getEntry((int) temp1,
 								(int) temp2);
-						Aeq.addToEntry(k, counter, temp);
+						Aeq.addToEntry(k, counter++, temp);
 					}
 				}
 			}
 		}
 		ArrayRealVector beq = new ArrayRealVector(numClass);
-		ArrayRealVector LB = new ArrayRealVector(sizeAlphaSum);
 		ArrayRealVector UB = new ArrayRealVector(sizeAlphaSum);
-		int counter = -1;
+		int counter = 0;
 		for (int i = 0; i < numTraining; i++) {
 			for (int m = 0; m < labelSize.getEntry(i); m++) {
 				for (int n = 0; n < numClass - labelSize.getEntry(i); n++) {
-					counter++;
 					double temp = cost / sizeAlpha.getEntry(i);
-					UB.addToEntry(counter, temp);
+					UB.addToEntry(counter++, temp);
 				}
 			}
 		}
 		System.out.println("Lilia: ");
 		// find alpha new
-		double[] gradientArray = gradient.toArray();
-		double[][] AeqArray = Aeq.getData();
-		double[] UBArray = UB.toArray();
-		double[] LBArray = LB.toArray();
-		double[] beqArray = beq.toArray();
-		LinearObjectiveFunction f = new LinearObjectiveFunction(gradientArray, 0);
+		LinearObjectiveFunction f = new LinearObjectiveFunction(gradient, 0);
 		Collection<LinearConstraint> constraints = new ArrayList<LinearConstraint>();
 		
 		// Constraint Aeq*x=beq
 		for (int i = 0; i < Aeq.getRowDimension(); i++) {
 			double[] Av = new double[Aeq.getColumnDimension()];
 			for (int j = 0; j < Aeq.getColumnDimension(); j++) {
-				Av[j] = AeqArray[i][j];
+				Av[j] = Aeq.getEntry(i, j);
 			}
 			constraints.add(new LinearConstraint(Av, Relationship.EQ,
-					beqArray[i]));
+					beq.getEntry(i)));
 		}
 
 		// Constraints x=<UB, x>=LB
 		ArrayRealVector coeffTemp = new ArrayRealVector(
 				Aeq.getColumnDimension());
-		for (int k = 0; k < Aeq.getColumnDimension(); k++) {
-			coeffTemp.setEntry(k, 0);
+//		for (int j = 0; j < Aeq.getColumnDimension(); j++) {
+//			ArrayRealVector coeff = coeffTemp;//.copy();
+//			coeff.setEntry(j, 1);
+//			//constraints.add(new LinearConstraint(coeff, Relationship.LEQ,
+//					UB.getEntry(j)));
+//			//constraints.add(new LinearConstraint(coeff, Relationship.GEQ, 0));
+//			//coeff.setEntry(j, 0);
+//			System.out.println("Iteration: " + j);
+//		}
+		
+		
+//		SimplexSolver solver = new SimplexSolver();
+//		// double[] solution = new double[sizeAlphaSum];
+//		double[] LB = new double[Aeq.getColumnDimension()];
+//		PointValuePair optSolution = solver.optimize(new MaxIter(100), f,
+//				new LinearConstraintSet(constraints), GoalType.MINIMIZE, new SimpleBounds(LB, UB.toArray()));
+//		// solution = optSolution.getPoint();
+//		ArrayRealVector solution = new ArrayRealVector(optSolution.getPoint());
+//		System.out.println("Ok: ");
+//		return solution;
+    	LinearProgram lp = new LinearProgram(gradient.toArray());
+		for (int i = 0; i < Aeq.getRowDimension(); i++) {
+	    	lp.addConstraint(new LinearEqualsConstraint(Aeq.getRow(i), beq.getEntry(i), "c1"));
 		}
 		for (int j = 0; j < Aeq.getColumnDimension(); j++) {
-			ArrayRealVector coeff = coeffTemp;
-			coeff.setEntry(j, 1);
-			constraints.add(new LinearConstraint(coeff, Relationship.LEQ,
-					UBArray[j]));
-			constraints.add(new LinearConstraint(coeff, Relationship.GEQ,
-					LBArray[j]));
-			coeff.setEntry(j, 0);
-			System.out.println("Iteration: " + j);
+			SparseVector coeff = new SparseVector(Aeq.getColumnDimension(), 1);
+			coeff.set(j, 1);
+	    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(coeff, 0, "c2"));
+	    	lp.addConstraint(new LinearSmallerThanEqualsConstraint(coeff, UB.getEntry(j), "c3"));
+	    	System.out.println("Iteration " + j);
 		}
-		
-		
-		SimplexSolver solver = new SimplexSolver();
-		// double[] solution = new double[sizeAlphaSum];
-		PointValuePair optSolution = solver.optimize(new MaxIter(100), f,
-				new LinearConstraintSet(constraints), GoalType.MINIMIZE);
-		// solution = optSolution.getPoint();
-		ArrayRealVector solution = new ArrayRealVector(optSolution.getPoint());
-		System.out.println("Ok: ");
-		return solution;
+    	lp.setMinProblem(true);
+    	LinearProgramSolver solver  = SolverFactory.newDefault();
+    	double[] sol = solver.solve(lp);
+    	return new ArrayRealVector(sol);
 	}
 
 	double findLambda(ArrayRealVector Alpha_new,
@@ -482,13 +493,13 @@ public class RankSVM extends MultiLabelLearnerBase {
 		if (Math.abs(lambda) <= lambdaTol || lambda * dist <= normTol) {
 			continuing = false;
 			System.out.println("program terminated normally");
-		} else if (iteration >= maxIter) {
+		}
+		else if (iteration >= maxIter) {
 		    continuing = false;
-			System.err
-					.println("maximum number of iterations reached, procedure not convergent");
-		} else
-			alpha = alpha.add(Alpha_new.subtract(alpha).mapMultiplyToSelf(
-					lambda));
+			System.err.println("maximum number of iterations reached, procedure not convergent");
+		}
+		else
+			alpha = alpha.add(Alpha_new.subtract(alpha).mapMultiplyToSelf(lambda));
 		return continuing;
 	}
 

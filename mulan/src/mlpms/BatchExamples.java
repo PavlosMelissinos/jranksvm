@@ -6,34 +6,15 @@ package mlpms;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-
-
-
-
-
-
-
-
-
-
-
+import mulan.data.InvalidDataFormatException;
+import mulan.data.MultiLabelInstances;
+import mulan.examples.CrossValidationExperiment;
 import scpsolver.constraints.LinearBiggerThanEqualsConstraint;
 import scpsolver.constraints.LinearSmallerThanEqualsConstraint;
 import scpsolver.lpsolver.LinearProgramSolver;
 import scpsolver.lpsolver.SolverFactory;
 import scpsolver.problems.LinearProgram;
 //import jeans.math.evaluate.Evaluator;
-import mulan.classifier.transformation.BinaryRelevance;
-import mulan.data.InvalidDataFormatException;
-import mulan.data.MultiLabelInstances;
-import mulan.evaluation.Evaluation;
-import mulan.evaluation.Evaluator;
-import mulan.examples.CrossValidationExperiment;
-import weka.classifiers.Classifier;
-import weka.classifiers.functions.supportVector.SMOset;
-import weka.classifiers.trees.J48;
-import weka.core.Instance;
-import weka.core.Instances;
 
 
 public class BatchExamples {
@@ -53,6 +34,26 @@ public class BatchExamples {
    			 
    		RankSVM classifier = new RankSVM();
    		classifier.build(trainingSet);
+   		
+		// Constraints x=<UB, x>=LB
+//		ArrayRealVector coeffTemp = new ArrayRealVector(
+//				60000);
+//		Collection<LinearConstraint> constraints = new ArrayList<LinearConstraint>();
+//		for (int k = 0; k < 60000; k++) {
+//			coeffTemp.setEntry(k, 0);
+//		}
+//		for (int j = 0; j < 60000; j++) {
+//			ArrayRealVector coeff = coeffTemp.copy();
+//			coeff.setEntry(j, 1);
+//
+//			constraints.add(new LinearConstraint(coeff, Relationship.LEQ,
+//					Math.random()));
+//			constraints.add(new LinearConstraint(coeff, Relationship.GEQ, 0));
+//			//coeff.setEntry(j, 0);
+//			System.out.println("Iteration: " + j);
+//		}
+//
+//		System.out.println("Iterations done.");
    		//Classifier base = new J48();
    		//}
    			 
