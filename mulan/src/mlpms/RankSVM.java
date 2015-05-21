@@ -2,7 +2,11 @@ package mlpms;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.stream.DoubleStream;
 
 import mulan.classifier.InvalidDataException;
@@ -13,6 +17,9 @@ import mulan.data.MultiLabelInstances;
 import org.apache.commons.math3.analysis.function.Power;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
+import org.apache.commons.math3.linear.DecompositionSolver;
+import org.apache.commons.math3.linear.LUDecomposition;
+import org.apache.commons.math3.linear.OpenMapRealVector;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
 import org.apache.commons.math3.optim.MaxEval;
@@ -122,8 +129,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 				.get("Label");
 		ArrayList<ArrayRealVector> notLabel = (ArrayList<ArrayRealVector>) alphas
 				.get("notLabel");
-		findAlpha(sizeAlpha, labelSize, Label, notLabel, kernel);
-		// computeBias();
+		ArrayRealVector gradient = findAlpha(sizeAlpha, labelSize, Label, notLabel, kernel);
+		ArrayRealVector bias = computeBias(labelSize, sizeAlpha, Label, notLabel, gradient);
 		// computeSizePredictor();
 	}
 
@@ -305,7 +312,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return cValue;
 	}
 
-	private void findAlpha(ArrayRealVector sizeAlpha,
+	private ArrayRealVector findAlpha(ArrayRealVector sizeAlpha,
 			ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label,
 			ArrayList<ArrayRealVector> notLabel, BlockRealMatrix kernel) {
 		boolean continuing = true;
@@ -317,6 +324,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 		this.alpha = new ArrayRealVector(sizeAlphaSum, 0);
 		int numClass = this.trainTarget.getRowDimension();
 		int numTraining = this.trainTarget.getColumnDimension();
+		double lambda = 0;
+		ArrayRealVector gradient = new ArrayRealVector(sizeAlphaSum);
 		for (int iteration = 1; continuing; iteration++) {
 			System.out.println("current iteration: " + iteration);
 
@@ -353,7 +362,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		    
 		    BlockRealMatrix inner = beta.multiply(kernel); //inner = beta X kernel
 															// kernel
-			ArrayRealVector gradient = new ArrayRealVector(sizeAlphaSum);
+			gradient = new ArrayRealVector(sizeAlphaSum);
 			int index = 0;
 			for (int i = 0; i < numTraining; i++) {
 				for (int m = 0; m < labelSize.getEntry(i); m++) {
@@ -374,11 +383,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 					sizeAlphaSum, numTraining, labelSize, Label, notLabel,
 					cValue, sizeAlpha);
 
-			double lambda = findLambda(Alpha_new, cValue, kernel, numTraining,
+			lambda = findLambda(Alpha_new, cValue, kernel, numTraining,
 					numClass, Label, notLabel, labelSize, sizeAlpha);
 
 			continuing = testConvergence(lambda, iteration, Alpha_new);
 		}
+		return gradient;
 	}
 
 	ArrayRealVector findAlphaNew(ArrayRealVector gradient, int numClass,
@@ -417,7 +427,9 @@ public class RankSVM extends MultiLabelLearnerBase {
 		System.out.println("Lilia: ");
 		// find alpha new
 		LinearObjectiveFunction f = new LinearObjectiveFunction(gradient, 0);
-		Collection<LinearConstraint> constraints = new ArrayList<LinearConstraint>();
+		ArrayList<LinearConstraint> constraints = new ArrayList<LinearConstraint>();
+		//Set<LinearConstraint> constraints = new LinkedHashSet<LinearConstraint>();
+		
 		
 		// Constraint Aeq*x=beq
 		for (int i = 0; i < Aeq.getRowDimension(); i++) {
@@ -432,41 +444,42 @@ public class RankSVM extends MultiLabelLearnerBase {
 		// Constraints x=<UB, x>=LB
 		ArrayRealVector coeffTemp = new ArrayRealVector(
 				Aeq.getColumnDimension());
-//		for (int j = 0; j < Aeq.getColumnDimension(); j++) {
-//			ArrayRealVector coeff = coeffTemp;//.copy();
-//			coeff.setEntry(j, 1);
-//			//constraints.add(new LinearConstraint(coeff, Relationship.LEQ,
-//					UB.getEntry(j)));
-//			//constraints.add(new LinearConstraint(coeff, Relationship.GEQ, 0));
-//			//coeff.setEntry(j, 0);
-//			System.out.println("Iteration: " + j);
-//		}
-		
-		
-//		SimplexSolver solver = new SimplexSolver();
-//		// double[] solution = new double[sizeAlphaSum];
-//		double[] LB = new double[Aeq.getColumnDimension()];
-//		PointValuePair optSolution = solver.optimize(new MaxIter(100), f,
-//				new LinearConstraintSet(constraints), GoalType.MINIMIZE, new SimpleBounds(LB, UB.toArray()));
-//		// solution = optSolution.getPoint();
-//		ArrayRealVector solution = new ArrayRealVector(optSolution.getPoint());
-//		System.out.println("Ok: ");
-//		return solution;
-    	LinearProgram lp = new LinearProgram(gradient.toArray());
-		for (int i = 0; i < Aeq.getRowDimension(); i++) {
-	    	lp.addConstraint(new LinearEqualsConstraint(Aeq.getRow(i), beq.getEntry(i), "c1"));
-		}
 		for (int j = 0; j < Aeq.getColumnDimension(); j++) {
-			SparseVector coeff = new SparseVector(Aeq.getColumnDimension(), 1);
-			coeff.set(j, 1);
-	    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(coeff, 0, "c2"));
-	    	lp.addConstraint(new LinearSmallerThanEqualsConstraint(coeff, UB.getEntry(j), "c3"));
-	    	System.out.println("Iteration " + j);
+			//ArrayRealVector coeff = coeffTemp;//.copy();
+			OpenMapRealVector coeff = new OpenMapRealVector(Aeq.getColumnDimension());
+			coeff.setEntry(j, 1);
+			constraints.add(new LinearConstraint(coeff, Relationship.LEQ, UB.getEntry(j)));
+			constraints.add(new LinearConstraint(coeff, Relationship.GEQ, 0));
+			//coeff.setEntry(j, 0);
+			System.out.println("Iteration: " + j);
 		}
-    	lp.setMinProblem(true);
-    	LinearProgramSolver solver  = SolverFactory.newDefault();
-    	double[] sol = solver.solve(lp);
-    	return new ArrayRealVector(sol);
+		HashSet<LinearConstraint> consts = new HashSet<LinearConstraint>(3 * constraints.size() / 2);
+		Collections.addAll(consts, (LinearConstraint[]) constraints.toArray());
+		 //= new HashSet<LinearConstraint>(constraints);
+		SimplexSolver solver = new SimplexSolver();
+		PointValuePair optSolution = solver.optimize(new MaxIter(100), f,
+				//new LinearConstraintSet(constraints), GoalType.MINIMIZE, new SimpleBounds(LB, UB.toArray()));
+				new LinearConstraintSet(constraints), GoalType.MINIMIZE);
+		// solution = optSolution.getPoint();
+		ArrayRealVector solution = new ArrayRealVector(optSolution.getPoint());
+		System.out.println("Ok: ");
+		return solution;
+		
+//    	LinearProgram lp = new LinearProgram(gradient.toArray());
+//		for (int i = 0; i < Aeq.getRowDimension(); i++) {
+//	    	lp.addConstraint(new LinearEqualsConstraint(Aeq.getRow(i), beq.getEntry(i), "c1"));
+//		}
+//		for (int j = 0; j < Aeq.getColumnDimension(); j++) {
+//			SparseVector coeff = new SparseVector(Aeq.getColumnDimension(), 1);
+//			coeff.set(j, 1);
+//	    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(coeff, 0, "c2"));
+//	    	lp.addConstraint(new LinearSmallerThanEqualsConstraint(coeff, UB.getEntry(j), "c3"));
+//	    	System.out.println("Iteration " + j);
+//		}
+//    	lp.setMinProblem(true);
+//    	LinearProgramSolver solver  = SolverFactory.newDefault();
+//    	double[] sol = solver.solve(lp);
+//    	return new ArrayRealVector(sol);
 	}
 
 	double findLambda(ArrayRealVector Alpha_new,
@@ -503,8 +516,48 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return continuing;
 	}
 
-	private void computeBias() {
-		// stub
+	private ArrayRealVector computeBias(ArrayRealVector labelSize, ArrayRealVector sizeAlpha,
+			ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel, ArrayRealVector gradient) {
+		int numClass = this.trainTarget.getRowDimension();
+		int numTraining = this.trainTarget.getColumnDimension();
+		int sizeAlphaSum = new Double(DoubleStream.of(sizeAlpha.toArray()).sum()).intValue();
+		BlockRealMatrix left = new BlockRealMatrix(sizeAlphaSum, numClass);
+		ArrayRealVector right = new ArrayRealVector(sizeAlphaSum);
+		int counter = 0;
+		for (int i = 0; i < numTraining; i++){
+		    for (int m = 0; m < labelSize.getEntry(i); m++){
+		        for (int n = 0; n < numClass - labelSize.getEntry(i); n++){
+//		            index = sum(size_alpha(1:i - 1)) + (m - 1) * (num_class - Label_size(i)) + n;
+		        	int sizeAlphaSubSum = (int) DoubleStream.of(sizeAlpha.getSubVector(0, i - 1).toArray()).map(Math::round).sum();
+		        	int index = sizeAlphaSubSum + (m - 1) * (numClass - new Double(labelSize.getEntry(i)).intValue()) + n;
+//		            if((abs(Alpha(index))>=lambda_tol)&&(abs(Alpha(index)-(cost/(size_alpha(i))))>=lambda_tol))
+		        	if (Math.abs(alpha.getEntry(index)) >= lambdaTol &&
+		        			Math.abs(alpha.getEntry(index) - (cost / sizeAlpha.getEntry(i))) >= lambdaTol){
+		        	
+		        		ArrayRealVector vector = new ArrayRealVector(numClass);
+			        	vector.setEntry(new Double(Label.get(i).getEntry(m)).intValue(), 1.0);
+			        	vector.setEntry(new Double(notLabel.get(i).getEntry(m)).intValue(), -1.0);
+			        	
+			        	left.setRowVector(counter++, vector);
+		                right.setEntry(counter++, -gradient.getEntry(index));
+		        	}
+		        }
+		    }
+		}
+		ArrayRealVector bias;
+		if (left.getColumnDimension() == 0 || left.getRowDimension() == 0){
+			bias = new ArrayRealVector(trainTarget.getRowDimension());
+			for (int i = 0; i < trainTarget.getRowDimension(); i++){
+				int sum = new Double(DoubleStream.of(trainTarget.getRowVector(i).toArray()).sum()).intValue();
+				bias.setEntry(i, sum);
+			}
+		}
+		else{
+			// Left * bias' = Right
+			DecompositionSolver solver = new LUDecomposition(left).getSolver();
+			bias = (ArrayRealVector) solver.solve(right);
+		}
+		return bias;
 	}
 
 	private void computeSizePredictor() {

@@ -6,6 +6,8 @@ package mlpms;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.joptimizer.functions.LinearMultivariateRealFunction;
+
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;
 import mulan.examples.CrossValidationExperiment;
@@ -25,16 +27,33 @@ public class BatchExamples {
      * @throws InvalidDataFormatException 
      */
     public static void main(String[] args) throws InvalidDataFormatException {
-   	try {
+    	try {
 			MultiLabelInstances trainingSet;
-           trainingSet = new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
+			trainingSet = new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
             //int [] temp = trainingSet.getLabelIndices();
-          //  for (int j = 0; j < trainingSet.getNumInstances(); j++) {
-   			// Instance inst = trainingSet.getNextInstance();
-   			 
-   		RankSVM classifier = new RankSVM();
-   		classifier.build(trainingSet);
-   		
+			//for (int j = 0; j < trainingSet.getNumInstances(); j++) {
+   			//	Instance inst = trainingSet.getNextInstance();
+			LinearMultivariateRealFunction objectiveFunction = new LinearMultivariateRealFunction(new double[] { -1., -1. }, 4);   			 
+			RankSVM classifier = new RankSVM();
+			classifier.build(trainingSet);
+
+
+	    } catch (Exception ex) {
+	        Logger.getLogger(CrossValidationExperiment.class.getName()).log(Level.SEVERE, null, ex);
+	    }
+    	runLinear();
+    }
+    static void runLinear(){
+    	LinearProgram lp = new LinearProgram(new double[]{5.0,10.0});
+    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{3.0,1.0}, 8.0, "c1"));
+    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{0.0,4.0}, 4.0, "c2"));
+    	lp.addConstraint(new LinearSmallerThanEqualsConstraint(new double[]{2.0,0.0}, 2.0, "c3"));
+    	lp.setMinProblem(true);
+    	LinearProgramSolver solver  = SolverFactory.newDefault();
+    	double[] sol = solver.solve(lp);
+    }
+    
+    static void legacyCode(){
 		// Constraints x=<UB, x>=LB
 //		ArrayRealVector coeffTemp = new ArrayRealVector(
 //				60000);
@@ -74,7 +93,7 @@ public class BatchExamples {
 //			Evaluation results = eval.evaluate(br, test, train);
 //			System.out.println(results);
 /* Lilia
-            
+
             LinearProgram lp = new LinearProgram(new double[]{5.0,10.0});
         	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{3.0,1.0}, 8.0, "c1"));
         	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{0.0,4.0}, 4.0, "c2"));
@@ -85,24 +104,10 @@ public class BatchExamples {
         }
         catch (InvalidDataFormatException ex) {
        Logger.getLogger(CrossValidationExperiment.class.getName()).log(Level.SEVERE, null, ex);
-	    } catch (Exception ex) {
+	   } catch (Exception ex) {
 	        Logger.getLogger(CrossValidationExperiment.class.getName()).log(Level.SEVERE, null, ex);
        }
-*/
-    } catch (InvalidDataFormatException ex) {
-	    } catch (Exception ex) {
-        Logger.getLogger(CrossValidationExperiment.class.getName()).log(Level.SEVERE, null, ex);
-    }
-    	runLinear();
-    }
-    static void runLinear(){
-    	LinearProgram lp = new LinearProgram(new double[]{5.0,10.0});
-    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{3.0,1.0}, 8.0, "c1"));
-    	lp.addConstraint(new LinearBiggerThanEqualsConstraint(new double[]{0.0,4.0}, 4.0, "c2"));
-    	lp.addConstraint(new LinearSmallerThanEqualsConstraint(new double[]{2.0,0.0}, 2.0, "c3"));
-    	lp.setMinProblem(true);
-    	LinearProgramSolver solver  = SolverFactory.newDefault();
-    	double[] sol = solver.solve(lp);
+*/    	
     }
     
 }
