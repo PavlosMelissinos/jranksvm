@@ -1,12 +1,17 @@
 package mlpms;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
 import mulan.classifier.InvalidDataException;
@@ -82,6 +87,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 	// private ArrayList<BlockRealMatrix> cValue;
 
 	private ArrayRealVector alpha;
+	private ArrayRealVector weightsSizePre;
+	private double biasSizePre;
 
 	private double cost;
 
@@ -560,8 +567,107 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return bias;
 	}
 
-	private void computeSizePredictor() {
-		// stub
+	private void computeSizePredictor(BlockRealMatrix beta, ArrayRealVector bias, BlockRealMatrix kernel, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel) {
+//		%Computing the size predictor using linear least squares model [2]
+
+		//Left=zeros(num_training,num_class);
+		int numClass = this.trainTarget.getRowDimension();
+		int numTraining = this.trainTarget.getColumnDimension();
+		BlockRealMatrix left = new BlockRealMatrix(numTraining, numClass);
+		
+		//matlab code
+		//for i=1:num_training
+		//	for k=1:num_class
+		//        temp=Beta(k,:)*kernel(:,i);
+		//        temp=temp+Bias(k);
+		//        Left(i,k)=temp;
+		//    end
+		//end
+		
+		//solution 1
+		left = beta.multiply(kernel).add(bias.outerProduct(new ArrayRealVector(bias.getDimension(), 1.0))).transpose();
+		
+		//solution 2
+//		for (int i = 0; i < numTraining; i++){
+//			for (int k = 0; k < numClass; k++){
+//				double temp = beta.getRowVector(k).dotProduct(kernel.getColumnVector(i));
+//				temp += bias.getEntry(k);
+//				left.setEntry(i, k, temp);
+//			}
+//		}
+		ArrayRealVector right = new ArrayRealVector(numTraining);
+		for (int i = 0; i < numTraining; i++){
+			int counter = 0;
+			ArrayList<ValueIndexPair> temp = new ArrayList<ValueIndexPair>();
+			//TreeMap<Integer, Double> temp = new TreeMap<Integer, Double>();
+			for (double entry: left.getRow(i)){
+				temp.add(new ValueIndexPair(counter++, entry));
+			}
+			Collections.sort(temp);
+			ArrayRealVector values = new ArrayRealVector(temp.size());
+			ArrayRealVector indices = new ArrayRealVector(temp.size());
+			counter = 0;
+			for (ValueIndexPair entry: temp){
+				values.setEntry(counter, entry.value);
+				indices.setEntry(counter++, entry.index);
+			}
+			
+			ArrayRealVector candidate = new ArrayRealVector(numClass + 1);
+			candidate.setEntry(1, temp.get(0).value - 0.1);
+
+			for (int j = 0; j < numClass - 1; j++){
+				double val = (values.getEntry(j) + values.getEntry(j + 1)) / 2;
+				candidate.setEntry(j + 1, val);
+			}
+			candidate.setEntry(numClass + 1, temp.get(numClass).value + 0.1);
+			ArrayRealVector missClass = new ArrayRealVector(numClass + 1);
+			for (int j = 0; j < numClass + 1; j++){
+				ArrayRealVector tempNotLabels = new ArrayRealVector();
+				if (j > 0){
+					tempNotLabels = (ArrayRealVector) indices.getSubVector(0, j);
+				}
+				ArrayRealVector tempLabels = new ArrayRealVector();
+				if (j < numClass)
+					tempLabels = (ArrayRealVector) indices.getSubVector(j, numClass - j);
+				
+				int falseNeg = setDiff(tempNotLabels, notLabel.get(i)).size();
+				int falsePos = setDiff(tempLabels, Label.get(i)).size();
+				missClass.setEntry(j, falseNeg + falsePos);
+				
+			}
+			
+			int tempMinimum = new Double(missClass.getMinValue()).intValue();
+			int tempIndex = new Double(missClass.getMinIndex()).intValue();
+			
+			right.setEntry(i, candidate.getEntry(tempIndex));
+		}
+		//TODO Left=[Left,ones(num_training,1)];
+		BlockRealMatrix leftNew = new BlockRealMatrix(numTraining, numClass + 1);
+		for (int j = 0; j < numClass; j++){
+			leftNew.setColumnVector(j, left.getColumnVector(j));
+		}
+		leftNew.setColumnVector(numClass, new ArrayRealVector(numTraining, 1));
+		
+		//TODO tempvalue=(Left\Right)';
+		DecompositionSolver solver = new LUDecomposition(left).getSolver();
+		ArrayRealVector tempValue = (ArrayRealVector) solver.solve(right);
+		
+		//TODO Weights_sizepre=tempvalue(1:num_class);
+		this.weightsSizePre = (ArrayRealVector) tempValue.getSubVector(0, numClass);
+		
+		//TODO Bias_sizepre=tempvalue(num_class+1);
+		this.biasSizePre = tempValue.getEntry(numClass);
+		
+	}
+	
+	Set<Double> setDiff(ArrayRealVector a, ArrayRealVector b){
+		Set<Double> aa = DoubleStream.of(a.getDataRef())
+				.boxed().collect(Collectors.toSet());
+		Set<Double> bb = DoubleStream.of(b.getDataRef())
+				.boxed().collect(Collectors.toSet());
+		aa.removeAll(bb);
+		return aa;
+		
 	}
 
 	@Override
@@ -591,6 +697,21 @@ public class RankSVM extends MultiLabelLearnerBase {
 		result.setValue(Field.YEAR, "2001");
 
 		return result;
+	}
+	
+	private class ValueIndexPair implements Comparable<ValueIndexPair> {
+	    public final int index;
+	    public final double value;
+
+	    ValueIndexPair(int index, double value) {
+	        this.index = index;
+	        this.value = value;
+	    }
+
+	    @Override
+	    public int compareTo(ValueIndexPair other) {
+	        return Double.valueOf(this.value).compareTo(other.value);
+	    }
 	}
 
 }
