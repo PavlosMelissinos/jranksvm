@@ -24,6 +24,7 @@ import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
 import org.apache.commons.math3.linear.DecompositionSolver;
 import org.apache.commons.math3.linear.LUDecomposition;
+import org.apache.commons.math3.linear.MatrixUtils;
 import org.apache.commons.math3.linear.OpenMapRealVector;
 import org.apache.commons.math3.linear.RealMatrix;
 import org.apache.commons.math3.linear.RealVector;
@@ -689,7 +690,39 @@ public class RankSVM extends MultiLabelLearnerBase {
 	        else notLabel.setEntry(j - labelIndex, j);
 	    }
 	    
+	    ArrayRealVector kernel = setupPredictKernel(instance);
 	    return null;
+	}
+
+	private ArrayRealVector setupPredictKernel(Instance testInstance){
+		ArrayRealVector dTestInstance = new ArrayRealVector(testInstance.toDoubleArray());
+		int numTraining = this.SVs.getColumnDimension();
+		ArrayRealVector kernel = new ArrayRealVector(numTraining);
+		if (this.kType.equals(KernelType.RBF)){
+	        for (int j = 0; j < numTraining; j++){
+	            //kernel(j) = exp(-this.gamma * sum((dTestInstance ' - SVs(:,j)).^2))
+				ArrayRealVector powTemp = dTestInstance.subtract(
+						SVs.getColumnVector(j)).mapToSelf(new Power(2));
+				double exponent = -this.gamma * StatUtils.sum(powTemp.toArray());
+				kernel.setEntry(j, FastMath.exp(exponent));
+	        }
+		}
+		else if(this.kType.equals(KernelType.POLYNOMIAL)){
+            for (int j = 0; j < numTraining; j++){
+            	double dotProd = dTestInstance.dotProduct(SVs.getColumnVector(j));
+            	double base = this.gamma * dotProd + this.coefficient;
+            	double value = FastMath.pow(base, this.degree);
+                kernel.setEntry(j, value);
+            }
+		}
+	    else{
+	    	RealMatrix instMat = MatrixUtils.createRowRealMatrix(dTestInstance.toArray());
+	    	kernel = (ArrayRealVector) instMat.multiply(SVs).getRowVector(1);
+            //for (int j = 0; j < numTraining; j++){
+            //    kernel.setEntry(j, dTestInstance.dotProduct(SVs.getColumnVector(j)));
+            //}
+	    }
+		return kernel;
 	}
 
 	public String globalInfo() {
