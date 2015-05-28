@@ -147,6 +147,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		computeSizePredictor(weights, bias, kernel, Label, notLabel);
 	}
 
+	
 	HashMap<String, Object> setup(MultiLabelInstances trainingSet) {
 		// Preprocessing - Initialize support vectors & targets (labels)
 
