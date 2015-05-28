@@ -43,6 +43,7 @@ import org.apache.commons.math3.optim.univariate.UnivariateObjectiveFunction;
 import org.apache.commons.math3.optim.univariate.UnivariatePointValuePair;
 import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.util.FastMath;
+import org.apache.commons.math3.util.Precision;
 
 import scpsolver.constraints.LinearBiggerThanEqualsConstraint;
 import scpsolver.constraints.LinearEqualsConstraint;
@@ -673,8 +674,22 @@ public class RankSVM extends MultiLabelLearnerBase {
 	@Override
 	protected MultiLabelOutput makePredictionInternal(Instance instance)
 			throws Exception, InvalidDataException {
-		// TODO Auto-generated method stub
-		return null;
+		int numTraining = this.SVs.getColumnDimension();
+		int numClass = this.numLabels;
+
+	    double labelSize = DoubleStream.of(instance.toDoubleArray()).sum();
+		ArrayRealVector label = new ArrayRealVector(Double.valueOf(labelSize).intValue());
+		ArrayRealVector notLabel = new ArrayRealVector(Double.valueOf(labelSize).intValue());
+	    ArrayRealVector temp = new ArrayRealVector(instance.toDoubleArray());
+	    double sizeAlpha = labelSize * (numClass - labelSize);
+	    int labelIndex = 0;
+	    for (int j = 0; j < numClass; j++){
+	        if (Precision.equals(temp.getEntry(j), 1.0))
+	            label.setEntry(labelIndex++, j);
+	        else notLabel.setEntry(j - labelIndex, j);
+	    }
+	    
+	    return null;
 	}
 
 	public String globalInfo() {
