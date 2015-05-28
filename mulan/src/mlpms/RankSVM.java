@@ -43,7 +43,9 @@ import org.apache.commons.math3.optim.univariate.SearchInterval;
 import org.apache.commons.math3.optim.univariate.UnivariateObjectiveFunction;
 import org.apache.commons.math3.optim.univariate.UnivariatePointValuePair;
 import org.apache.commons.math3.stat.StatUtils;
+import org.apache.commons.math3.util.ArithmeticUtils;
 import org.apache.commons.math3.util.FastMath;
+import org.apache.commons.math3.util.MathUtils;
 import org.apache.commons.math3.util.Precision;
 
 import scpsolver.constraints.LinearBiggerThanEqualsConstraint;
@@ -82,15 +84,16 @@ public class RankSVM extends MultiLabelLearnerBase {
 	// private double[][] train_target;
 	private BlockRealMatrix trainTarget;
 
-	private BlockRealMatrix SVs;
 
 	private BlockRealMatrix target;
 
-	// private ArrayList<BlockRealMatrix> cValue;
-
-	private ArrayRealVector alpha;
+	private BlockRealMatrix weights;
+	private ArrayRealVector bias;
+	private BlockRealMatrix SVs;
 	private ArrayRealVector weightsSizePre;
 	private double biasSizePre;
+
+	private ArrayRealVector alpha;
 
 	private double cost;
 
@@ -101,6 +104,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 	private double normTol = 1e-4;
 	private int maxIter = 50;
 
+	
 	enum KernelType {
 		LINEAR, POLYNOMIAL, RBF;
 	}
@@ -139,8 +143,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 		ArrayList<ArrayRealVector> notLabel = (ArrayList<ArrayRealVector>) alphas
 				.get("notLabel");
 		ArrayRealVector gradient = findAlpha(sizeAlpha, labelSize, Label, notLabel, kernel);
-		ArrayRealVector bias = computeBias(labelSize, sizeAlpha, Label, notLabel, gradient);
-		// computeSizePredictor();
+		computeBias(labelSize, sizeAlpha, Label, notLabel, gradient);
+		computeSizePredictor(weights, bias, kernel, Label, notLabel);
 	}
 
 	HashMap<String, Object> setup(MultiLabelInstances trainingSet) {
@@ -335,11 +339,12 @@ public class RankSVM extends MultiLabelLearnerBase {
 		int numTraining = this.trainTarget.getColumnDimension();
 		double lambda = 0;
 		ArrayRealVector gradient = new ArrayRealVector(sizeAlphaSum);
+		BlockRealMatrix beta = null;
 		for (int iteration = 1; continuing; iteration++) {
 			System.out.println("current iteration: " + iteration);
 
 			// computeBeta(sizeAlpha, labelSize, Label, notLabel);
-			BlockRealMatrix beta = new BlockRealMatrix(numClass, numTraining);
+			beta = new BlockRealMatrix(numClass, numTraining);
 			for (int k = 0; k < numClass; k++) {
 				for (int i = 0; i < numTraining; i++) {
 					double sum = i > 0 ? StatUtils.sum(sizeAlpha.getSubVector(
@@ -365,8 +370,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 					}
 				}
 			}
-
-		    
+					    
 		//	computeGradient
 		    
 		    BlockRealMatrix inner = beta.multiply(kernel); //inner = beta X kernel
@@ -397,6 +401,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 
 			continuing = testConvergence(lambda, iteration, Alpha_new);
 		}
+		this.weights = beta;
 		return gradient;
 	}
 
@@ -525,7 +530,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return continuing;
 	}
 
-	private ArrayRealVector computeBias(ArrayRealVector labelSize, ArrayRealVector sizeAlpha,
+	private void computeBias(ArrayRealVector labelSize, ArrayRealVector sizeAlpha,
 			ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel, ArrayRealVector gradient) {
 		int numClass = this.trainTarget.getRowDimension();
 		int numTraining = this.trainTarget.getColumnDimension();
@@ -553,20 +558,18 @@ public class RankSVM extends MultiLabelLearnerBase {
 		        }
 		    }
 		}
-		ArrayRealVector bias;
 		if (left.getColumnDimension() == 0 || left.getRowDimension() == 0){
-			bias = new ArrayRealVector(trainTarget.getRowDimension());
+			this.bias = new ArrayRealVector(trainTarget.getRowDimension());
 			for (int i = 0; i < trainTarget.getRowDimension(); i++){
 				int sum = new Double(DoubleStream.of(trainTarget.getRowVector(i).toArray()).sum()).intValue();
-				bias.setEntry(i, sum);
+				this.bias.setEntry(i, sum);
 			}
 		}
 		else{
 			// Left * bias' = Right
 			DecompositionSolver solver = new LUDecomposition(left).getSolver();
-			bias = (ArrayRealVector) solver.solve(right);
+			this.bias = (ArrayRealVector) solver.solve(right);
 		}
-		return bias;
 	}
 
 	private void computeSizePredictor(BlockRealMatrix beta, ArrayRealVector bias, BlockRealMatrix kernel, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel) {
@@ -681,17 +684,29 @@ public class RankSVM extends MultiLabelLearnerBase {
 	    double labelSize = DoubleStream.of(instance.toDoubleArray()).sum();
 		ArrayRealVector label = new ArrayRealVector(Double.valueOf(labelSize).intValue());
 		ArrayRealVector notLabel = new ArrayRealVector(Double.valueOf(labelSize).intValue());
-	    ArrayRealVector temp = new ArrayRealVector(instance.toDoubleArray());
-	    double sizeAlpha = labelSize * (numClass - labelSize);
+	    ArrayRealVector instVector = new ArrayRealVector(instance.toDoubleArray());
+	    //double sizeAlpha = labelSize * (numClass - labelSize);
 	    int labelIndex = 0;
 	    for (int j = 0; j < numClass; j++){
-	        if (Precision.equals(temp.getEntry(j), 1.0))
+	        if (Precision.equals(instVector.getEntry(j), 1.0))
 	            label.setEntry(labelIndex++, j);
 	        else notLabel.setEntry(j - labelIndex, j);
 	    }
 	    
 	    ArrayRealVector kernel = setupPredictKernel(instance);
-	    return null;
+	    
+	    ArrayRealVector outputs = new ArrayRealVector(numClass);
+        for (int k = 0; k < numClass; k++){
+            double temp = 0;
+            for (int j = 0; j < numTraining; j++){
+                temp = temp + weights.getEntry(k,j) * kernel.getEntry(j);            
+            }
+            temp = temp + bias.getEntry(k);
+            outputs.setEntry(k, temp);
+        }
+        double threshold = outputs.append(1).dotProduct(this.weightsSizePre.append(this.biasSizePre));
+        MultiLabelOutput out = new MultiLabelOutput(outputs.toArray(), threshold);
+	    return out;
 	}
 
 	private ArrayRealVector setupPredictKernel(Instance testInstance){
