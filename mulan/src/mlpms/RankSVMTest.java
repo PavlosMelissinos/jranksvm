@@ -140,6 +140,7 @@ public class RankSVMTest {
 
 		// MyClass is tested
 		RankSVM tester = new  RankSVM();
+		tester.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
 		HashMap<String, Object> results = tester.setup(trainingSet);
 		BlockRealMatrix SVs =  tester.getSVs();
 		BlockRealMatrix kernelRBF = tester.KernelsSetup(trainingSet,  SVs );
@@ -153,6 +154,74 @@ public class RankSVMTest {
 
 	}
 	
+	@Test
+	public void testBuildInternal() throws InvalidDataFormatException, Exception{
+		// Input Data
+		MultiLabelInstances trainingSet;
+		trainingSet = new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
+
+		// Expected Results 
+		// Size_alpha
+		MatFileReader reader = new MatFileReader("data/matlabWorkspace.mat");
+		// Kernel
+		MLDouble kernel_rbf_mat = (MLDouble)reader.getMLArray("kernel");
+		BlockRealMatrix kernelRBFMat = new BlockRealMatrix(kernel_rbf_mat.getArray());
+        // SVs
+		MLDouble SVs_mat = (MLDouble)reader.getMLArray("SVs");
+		BlockRealMatrix SVsMat = new BlockRealMatrix(SVs_mat.getArray());
+		// Size_alpha
+		MLDouble size_alpha_mat = (MLDouble)reader.getMLArray("size_alpha");
+		BlockRealMatrix sizeAlphaMat = new BlockRealMatrix(size_alpha_mat.getArray());
+		// Label size
+		MLDouble label_size_mat = (MLDouble)reader.getMLArray("Label_size");
+		BlockRealMatrix labelSizeMat = new BlockRealMatrix(label_size_mat.getArray());
+		// Label
+		MLCell label_mat = (MLCell) reader.getMLArray("Label");
+		ArrayList<MLArray> labelMat = new ArrayList<MLArray>(label_mat.cells());
+		// Not Label
+		MLCell not_label_mat = (MLCell) reader.getMLArray("not_Label");
+		ArrayList<MLArray> notLabelMat = new ArrayList<MLArray>(not_label_mat.cells());
+        // Gradient
+		MLDouble gradient_mat = (MLDouble)reader.getMLArray("gradient");
+		BlockRealMatrix gradientMat = new BlockRealMatrix(gradient_mat.getArray());
+		System.out.println("OK");
+		// MyClass is tested
+		RankSVM tester = new  RankSVM();
+/*		HashMap<String, Object>  results = tester.setup(trainingSet);
+		BlockRealMatrix SVs = tester.getSVs();*/
+		//ArrayRealVector gradient = tester.findAlpha(sizeAlphaMat, labelSizeMat, labelMat, notLabelMat, kernelRBFMat);
+
+		// Gradient
+	    double delta = 0.0001;
+		//assertArrayEquals(SVSMat.getData(), SVs.getData());
+		System.out.println("OK");
+		
+		
+		
+/*		
+		HashMap<String, Object> alphas = setup(trainingSet);
+		BlockRealMatrix kernel = KernelsSetup(trainingSet, getSVs());
+
+		ArrayRealVector sizeAlpha = (ArrayRealVector) alphas.get("sizeAlpha");
+		ArrayRealVector labelSize = (ArrayRealVector) alphas.get("labelSize");
+		ArrayList<ArrayRealVector> Label = (ArrayList<ArrayRealVector>) alphas.get("Label");
+		ArrayList<ArrayRealVector> notLabel = (ArrayList<ArrayRealVector>) alphas.get("notLabel");
+		ArrayRealVector gradient = findAlpha(sizeAlpha, labelSize, Label, notLabel, kernel);
+
+		// MyClass is tested
+		RankSVM tester = new  RankSVM();
+		HashMap<String, Object> results = tester.setup(trainingSet);
+		BlockRealMatrix SVs =  tester.getSVs();
+		BlockRealMatrix kernelRBF = tester.KernelsSetup(trainingSet,  SVs );
+		double delta = 0.0001;
+		//assertArrayEquals(kernelRBF.getData(), kernelRBFMat.getData());
+		for (int i = 0; i < kernelRBF.getColumnDimension(); i++){
+		assertArrayEquals(kernelRBF.getRow(i), kernelRBFMat.getRow(i), delta);
+		System.out.println("OK");
+		}
+		System.out.println("OK");
+*/
+	}
 	@Test
 	public void testMakePredictionInternal() throws IllegalArgumentException, Exception{
 		
