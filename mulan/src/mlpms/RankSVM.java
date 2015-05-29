@@ -138,10 +138,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 
 		ArrayRealVector sizeAlpha = (ArrayRealVector) alphas.get("sizeAlpha");
 		ArrayRealVector labelSize = (ArrayRealVector) alphas.get("labelSize");
-		ArrayList<ArrayRealVector> Label = (ArrayList<ArrayRealVector>) alphas
-				.get("Label");
-		ArrayList<ArrayRealVector> notLabel = (ArrayList<ArrayRealVector>) alphas
-				.get("notLabel");
+		ArrayList<ArrayRealVector> Label = (ArrayList<ArrayRealVector>) alphas.get("Label");
+		ArrayList<ArrayRealVector> notLabel = (ArrayList<ArrayRealVector>) alphas.get("notLabel");
 		ArrayRealVector gradient = findAlpha(sizeAlpha, labelSize, Label, notLabel, kernel);
 		computeBias(labelSize, sizeAlpha, Label, notLabel, gradient);
 		computeSizePredictor(weights, bias, kernel, Label, notLabel);
