@@ -1,5 +1,4 @@
 *
 !.gitignore
 !src/mlpms
-!data
 *.orig

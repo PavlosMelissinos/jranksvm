@@ -629,7 +629,6 @@ public class RankSVM extends MultiLabelLearnerBase {
 		ArrayRealVector label = new ArrayRealVector(Double.valueOf(labelSize).intValue());
 		ArrayRealVector notLabel = new ArrayRealVector(Double.valueOf(labelSize).intValue());
 	    ArrayRealVector instVector = new ArrayRealVector(instance.toDoubleArray());
-	    //double sizeAlpha = labelSize * (numClass - labelSize);
 	    int labelIndex = 0;
 	    for (int j = 0; j < numClass; j++){
 	        if (Precision.equals(instVector.getEntry(j), 1.0))

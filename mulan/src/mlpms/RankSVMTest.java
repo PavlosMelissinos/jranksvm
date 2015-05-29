@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 import junit.framework.Assert;
+import mlpms.RankSVM.KernelType;
 import mulan.core.MulanException;
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;
@@ -26,7 +27,9 @@ import static org.junit.Assert.assertArrayEquals;
 import com.jmatio.io.MatFileReader;
 import com.jmatio.types.MLArray;
 import com.jmatio.types.MLCell;
+import com.jmatio.types.MLChar;
 import com.jmatio.types.MLDouble;
+import com.jmatio.types.MLStructure;
 
 public class RankSVMTest {
 
@@ -167,9 +170,33 @@ public class RankSVMTest {
 		MultiLabelInstances testingSet =
 				new MultiLabelInstances("data/yeast-test.arff", "data/yeast.xml");
 		
-		MatFileReader reader1 = new MatFileReader("data/kernelRBF.mat");
+		MatFileReader reader1 = new MatFileReader("data/matlabWorkspace.mat");
 		
-		RankSVM classifier = new RankSVM();
+		MLStructure svmML = (MLStructure) reader1.getMLArray("svm");
+		MLChar type = (MLChar) svmML.getField("type");
+		KernelType kType = KernelType.valueOf(type.contentToString());
+		
+		MLDouble costML = (MLDouble) svmML.getField("cost", 0);
+		double cost = new BlockRealMatrix(costML.getArray()).getEntry(0, 0);
+		
+		MLDouble weightsML = (MLDouble) reader1.getMLArray("Weights");
+		BlockRealMatrix weights = new BlockRealMatrix(weightsML.getArray());
+
+		MLDouble biasML = (MLDouble) reader1.getMLArray("Bias");
+		ArrayRealVector bias = (ArrayRealVector) new BlockRealMatrix(biasML.getArray()).getRowVector(0);
+		
+		MLDouble SVsML = (MLDouble) reader1.getMLArray("SVs");
+		BlockRealMatrix SVs = new BlockRealMatrix(weightsML.getArray());
+		
+		MLDouble weightsSizePreML = (MLDouble) reader1.getMLArray("Weights_sizepre");
+		ArrayRealVector weightsSizePre = 
+				(ArrayRealVector) new BlockRealMatrix(weightsSizePreML.getArray()).getRowVector(0);
+		
+		MLDouble biasSizePreML = (MLDouble) reader1.getMLArray("Bias_sizepre");
+		double biasSizePre = new BlockRealMatrix(biasSizePreML.getArray()).getEntry(0, 0);
+
+		RankSVM classifier = new RankSVM(weights, bias, SVs, weightsSizePre, biasSizePre);
+		//classifier.setKernelOptions(kType, cost, gamma, coefficient, degree);
 		//classifier
 		Evaluator eval = new Evaluator();
 		Evaluation results = eval.evaluate(classifier, testingSet, trainingSet);
