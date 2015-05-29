@@ -13,6 +13,8 @@ import junit.framework.Assert;
 import mulan.core.MulanException;
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;
+import mulan.evaluation.Evaluation;
+import mulan.evaluation.Evaluator;
 
 import org.apache.commons.math.linear.RealMatrix;
 import org.apache.commons.math3.linear.ArrayRealVector;
@@ -144,7 +146,7 @@ public class RankSVMTest {
 
 		// MyClass is tested
 		RankSVM tester = new  RankSVM();
-		HashMap<String, Object>  results = tester.setup(trainingSet);
+		HashMap<String, Object> results = tester.setup(trainingSet);
 		BlockRealMatrix SVs =  tester.getSVs();
 		BlockRealMatrix kernelRBF = tester.KernelsSetup(trainingSet,  SVs );
 		double delta = 0.0001;
@@ -155,6 +157,22 @@ public class RankSVMTest {
 		}
 		System.out.println("OK");
 
+	}
+	
+	@Test
+	public void testMakePredictionInternal() throws IllegalArgumentException, Exception{
+		
+		MultiLabelInstances trainingSet =
+				new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
+		MultiLabelInstances testingSet =
+				new MultiLabelInstances("data/yeast-test.arff", "data/yeast.xml");
+		
+		MatFileReader reader1 = new MatFileReader("data/kernelRBF.mat");
+		
+		RankSVM classifier = new RankSVM();
+		//classifier
+		Evaluator eval = new Evaluator();
+		Evaluation results = eval.evaluate(classifier, testingSet, trainingSet);
 	}
 
 

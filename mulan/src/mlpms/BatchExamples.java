@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 
 import com.joptimizer.functions.LinearMultivariateRealFunction;
 
+import mlpms.RankSVM.KernelType;
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
@@ -33,7 +34,7 @@ public class BatchExamples {
 			MultiLabelInstances trainingSet =
 					new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
 			RankSVM classifier = new RankSVM();
-			classifier.build(trainingSet);
+			classifier.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
 			classifier.build(trainingSet);
 			
 			MultiLabelInstances testingSet =
