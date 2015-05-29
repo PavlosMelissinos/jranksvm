@@ -105,7 +105,6 @@ public class RankSVMTest {
 	}*/
 
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testBuildInternalgetSVs() throws InvalidDataFormatException, Exception{
 		// Input Data
@@ -130,7 +129,7 @@ public class RankSVMTest {
 
 	}
 
-/*	@Test
+	@Test
 	public void testBuildInternalKernelsSetup() throws InvalidDataFormatException, Exception{
 		// Input Data
 		MultiLabelInstances trainingSet;
@@ -146,14 +145,18 @@ public class RankSVMTest {
 		// MyClass is tested
 		RankSVM tester = new  RankSVM();
 		HashMap<String, Object>  results = tester.setup(trainingSet);
-		//BlockRealMatrix kernelRBF = KernelsSetup(trainingSet, getSVs());
-
-		results  = tester.setup(trainingSet);
+		BlockRealMatrix SVs =  tester.getSVs();
+		BlockRealMatrix kernelRBF = tester.KernelsSetup(trainingSet,  SVs );
 		double delta = 0.0001;
-
+		//assertArrayEquals(kernelRBF.getData(), kernelRBFMat.getData());
+		for (int i = 0; i < kernelRBF.getColumnDimension(); i++){
+		assertArrayEquals(kernelRBF.getRow(i), kernelRBFMat.getRow(i), delta);
+		System.out.println("OK");
+		}
+		System.out.println("OK");
 
 	}
-*/
+
 
 
 	/*public void testBuildInterna() throws Exception {

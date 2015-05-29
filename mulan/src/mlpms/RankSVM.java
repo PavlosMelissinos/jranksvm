@@ -120,7 +120,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		this.gamma = 1;
 		this.degree = 1;
 		this.coefficient = 1;
-		this.kType = KernelType.POLYNOMIAL;
+		this.kType = KernelType.RBF;
 	}
 
 	public BlockRealMatrix getSVs() {
@@ -255,7 +255,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		}
 	}
 
-	private BlockRealMatrix KernelsSetup(MultiLabelInstances trainingSet,
+	BlockRealMatrix KernelsSetup(MultiLabelInstances trainingSet,
 			RealMatrix SVs) {
 
 		int numTraining = trainingSet.getNumInstances();
@@ -307,7 +307,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return kernel;
 	}
 
-	private ArrayList<BlockRealMatrix> trainingChunk1() {
+	ArrayList<BlockRealMatrix> trainingChunk1() {
 		// %Begin training phase
 		ArrayList<BlockRealMatrix> cValue = new ArrayList<BlockRealMatrix>();
 
@@ -324,7 +324,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return cValue;
 	}
 
-	private ArrayRealVector findAlpha(ArrayRealVector sizeAlpha,
+	 ArrayRealVector findAlpha(ArrayRealVector sizeAlpha,
 			ArrayRealVector labelSize, ArrayList<ArrayRealVector> Label,
 			ArrayList<ArrayRealVector> notLabel, BlockRealMatrix kernel) {
 		boolean continuing = true;
@@ -511,7 +511,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return lambda;
 	}
 
-	private boolean testConvergence(double lambda, int iteration,
+	 boolean testConvergence(double lambda, int iteration,
 			ArrayRealVector Alpha_new) {
 		boolean continuing = true;
 
@@ -529,7 +529,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		return continuing;
 	}
 
-	private void computeBias(ArrayRealVector labelSize, ArrayRealVector sizeAlpha,
+	 void computeBias(ArrayRealVector labelSize, ArrayRealVector sizeAlpha,
 			ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel, ArrayRealVector gradient) {
 		int numClass = this.trainTarget.getRowDimension();
 		int numTraining = this.trainTarget.getColumnDimension();
@@ -571,7 +571,7 @@ public class RankSVM extends MultiLabelLearnerBase {
 		}
 	}
 
-	private void computeSizePredictor(BlockRealMatrix beta, ArrayRealVector bias, BlockRealMatrix kernel, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel) {
+	void computeSizePredictor(BlockRealMatrix beta, ArrayRealVector bias, BlockRealMatrix kernel, ArrayList<ArrayRealVector> Label, ArrayList<ArrayRealVector> notLabel) {
 //		%Computing the size predictor using linear least squares model [2]
 
 		//Left=zeros(num_training,num_class);
