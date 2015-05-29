@@ -1,28 +1,19 @@
 package mlpms;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
 
-import java.awt.List;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 
-import junit.framework.Assert;
 import mlpms.RankSVM.KernelType;
-import mulan.core.MulanException;
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.Evaluator;
 
-import org.apache.commons.math.linear.RealMatrix;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
 import org.junit.Test;
-
-import static org.junit.Assert.assertArrayEquals;
 
 import com.jmatio.io.MatFileReader;
 import com.jmatio.types.MLArray;
@@ -170,11 +161,13 @@ public class RankSVMTest {
 		MultiLabelInstances testingSet =
 				new MultiLabelInstances("data/yeast-test.arff", "data/yeast.xml");
 		
-		MatFileReader reader1 = new MatFileReader("data/matlabWorkspace.mat");
+		//MatFileReader reader1 = new MatFileReader("data/matlabWorkspace.mat");
+		MatFileReader reader1 = new MatFileReader("data/matlabWorkspaceAll.mat");
 		
 		MLStructure svmML = (MLStructure) reader1.getMLArray("svm");
 		MLChar type = (MLChar) svmML.getField("type");
-		KernelType kType = KernelType.valueOf(type.contentToString());
+		String typeStr = type.contentToString();
+		KernelType kType = KernelType.valueOf(typeStr);
 		
 		MLDouble costML = (MLDouble) svmML.getField("cost", 0);
 		double cost = new BlockRealMatrix(costML.getArray()).getEntry(0, 0);
