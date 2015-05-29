@@ -87,7 +87,6 @@ public class RankSVM extends MultiLabelLearnerBase {
 	private double lambdaTol = 1e-6;
 	private double normTol = 1e-4;
 	private int maxIter = 50;
-
 	
 	enum KernelType {
 		LINEAR, POLYNOMIAL, RBF;
@@ -715,5 +714,4 @@ public class RankSVM extends MultiLabelLearnerBase {
 	        return Double.valueOf(this.value).compareTo(other.value);
 	    }
 	}
-
 }

@@ -147,8 +147,8 @@ public class RankSVMTest {
 		double delta = 0.0001;
 		//assertArrayEquals(kernelRBF.getData(), kernelRBFMat.getData());
 		for (int i = 0; i < kernelRBF.getColumnDimension(); i++){
-		assertArrayEquals(kernelRBF.getRow(i), kernelRBFMat.getRow(i), delta);
-		System.out.println("OK");
+			assertArrayEquals(kernelRBF.getRow(i), kernelRBFMat.getRow(i), delta);
+			System.out.println("OK");
 		}
 		System.out.println("OK");
 
@@ -231,15 +231,15 @@ public class RankSVMTest {
 				new MultiLabelInstances("data/yeast-test.arff", "data/yeast.xml");
 		
 		//MatFileReader reader1 = new MatFileReader("data/matlabWorkspace.mat");
-		MatFileReader reader1 = new MatFileReader("data/matlabWorkspaceAll.mat");
+		MatFileReader reader1 = new MatFileReader("data/matlabPredict.mat");
 		
-		MLStructure svmML = (MLStructure) reader1.getMLArray("svm");
-		MLChar type = (MLChar) svmML.getField("type");
-		String typeStr = type.contentToString();
-		KernelType kType = KernelType.valueOf(typeStr);
+		//MLStructure svmML = (MLStructure) reader1.getMLArray("svm");
+		//MLChar type = (MLChar) svmML.getField("type");
+		//String typeStr = type.contentToString();
+		//KernelType kType = KernelType.valueOf(typeStr);
 		
-		MLDouble costML = (MLDouble) svmML.getField("cost", 0);
-		double cost = new BlockRealMatrix(costML.getArray()).getEntry(0, 0);
+		//MLDouble costML = (MLDouble) svmML.getField("cost", 0);
+		//double cost = new BlockRealMatrix(costML.getArray()).getEntry(0, 0);
 		
 		MLDouble weightsML = (MLDouble) reader1.getMLArray("Weights");
 		BlockRealMatrix weights = new BlockRealMatrix(weightsML.getArray());
@@ -248,7 +248,7 @@ public class RankSVMTest {
 		ArrayRealVector bias = (ArrayRealVector) new BlockRealMatrix(biasML.getArray()).getRowVector(0);
 		
 		MLDouble SVsML = (MLDouble) reader1.getMLArray("SVs");
-		BlockRealMatrix SVs = new BlockRealMatrix(weightsML.getArray());
+		BlockRealMatrix SVs = new BlockRealMatrix(SVsML.getArray());
 		
 		MLDouble weightsSizePreML = (MLDouble) reader1.getMLArray("Weights_sizepre");
 		ArrayRealVector weightsSizePre = 
@@ -259,7 +259,7 @@ public class RankSVMTest {
 
 		RankSVM classifier = new RankSVM(weights, bias, SVs, weightsSizePre, biasSizePre);
 		//classifier.setKernelOptions(kType, cost, gamma, coefficient, degree);
-		//classifier
+		classifier.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
 		Evaluator eval = new Evaluator();
 		Evaluation results = eval.evaluate(classifier, testingSet, trainingSet);
 	}
