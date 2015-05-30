@@ -32,13 +32,13 @@ public class BatchExamples {
     public static void main(String[] args) throws InvalidDataFormatException {
     	try {
 			MultiLabelInstances trainingSet =
-					new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
+					new MultiLabelInstances("data/yeast-train-10percent.arff", "data/yeast.xml");
 			RankSVM classifier = new RankSVM();
 			classifier.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
 			classifier.build(trainingSet);
 			
 			MultiLabelInstances testingSet =
-					new MultiLabelInstances("data/yeast-test.arff", "data/yeast.xml");
+					new MultiLabelInstances("data/yeast-test-10percent.arff", "data/yeast.xml");
             Evaluator eval = new Evaluator();
             Evaluation results = eval.evaluate(classifier, testingSet, trainingSet);
             System.out.println(results);

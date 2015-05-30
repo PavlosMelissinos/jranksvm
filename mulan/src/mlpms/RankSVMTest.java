@@ -4,26 +4,36 @@ import static org.junit.Assert.assertArrayEquals;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
+import junit.framework.Assert;
 import mlpms.RankSVM.KernelType;
+import mulan.classifier.MultiLabelOutput;
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.Evaluator;
+import mulan.evaluation.measure.AveragePrecision;
+import mulan.evaluation.measure.Coverage;
+import mulan.evaluation.measure.HammingLoss;
+import mulan.evaluation.measure.Measure;
+import mulan.evaluation.measure.OneError;
+import mulan.evaluation.measure.RankingLoss;
 
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
 import org.junit.Test;
 
+import weka.core.Instance;
+
 import com.jmatio.io.MatFileReader;
 import com.jmatio.types.MLArray;
 import com.jmatio.types.MLCell;
-import com.jmatio.types.MLChar;
 import com.jmatio.types.MLDouble;
-import com.jmatio.types.MLStructure;
 
 public class RankSVMTest {
 
+	private RankSVM learner = new RankSVM();
 	@SuppressWarnings("unchecked")
 	@Test
 	public void testBuildInternalSetup() throws InvalidDataFormatException, Exception{
@@ -160,8 +170,7 @@ public class RankSVMTest {
 				new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
 		MultiLabelInstances testingSet =
 				new MultiLabelInstances("data/yeast-test.arff", "data/yeast.xml");
-		
-		//MatFileReader reader1 = new MatFileReader("data/matlabWorkspace.mat");
+
 		MatFileReader reader1 = new MatFileReader("data/matlabPredict.mat");
 		
 		//MLStructure svmML = (MLStructure) reader1.getMLArray("svm");
@@ -188,11 +197,57 @@ public class RankSVMTest {
 		MLDouble biasSizePreML = (MLDouble) reader1.getMLArray("Bias_sizepre");
 		double biasSizePre = new BlockRealMatrix(biasSizePreML.getArray()).getEntry(0, 0);
 
-		RankSVM classifier = new RankSVM(weights, bias, SVs, weightsSizePre, biasSizePre);
+		//RankSVM classifier = new RankSVM(weights, bias, SVs, weightsSizePre, biasSizePre);
 		//classifier.setKernelOptions(kType, cost, gamma, coefficient, degree);
+		RankSVM classifier = new RankSVM();
 		classifier.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
+		classifier.build(trainingSet);
+		
+		for (int i = 0; i < testingSet.getNumInstances(); i++){
+			Instance instance = testingSet.getDataSet().instance(i);
+			MultiLabelOutput s = classifier.makePrediction(instance);
+		}
 		Evaluator eval = new Evaluator();
-		Evaluation results = eval.evaluate(classifier, testingSet, trainingSet);
+		ArrayList<Measure> measures = new ArrayList<Measure>();
+		measures.add(new HammingLoss());
+		measures.add(new RankingLoss());
+		measures.add(new OneError());
+		measures.add(new Coverage());
+		measures.add(new AveragePrecision());
+
+		//Evaluation results = eval.evaluate(classifier, testingSet, trainingSet);
+		Evaluation results = eval.evaluate(classifier, testingSet, measures);
+		List<Measure> measuresOut = results.getMeasures();
+		
+		MatFileReader reader2 = new MatFileReader("data/matlabPredictOutput.mat");
+		
+		MLDouble hLossML = (MLDouble) reader1.getMLArray("HammingLoss");
+		double hammingLoss = new BlockRealMatrix(hLossML.getArray()).getEntry(0, 0);
+		
+		MLDouble rLossML = (MLDouble) reader1.getMLArray("RankingLoss");
+		double rankingLoss = new BlockRealMatrix(rLossML.getArray()).getEntry(0, 0);
+		
+		MLDouble oneErrorML = (MLDouble) reader1.getMLArray("OneError");
+		double oneError = new BlockRealMatrix(oneErrorML.getArray()).getEntry(0, 0);
+		
+		MLDouble coverageML = (MLDouble) reader1.getMLArray("Coverage");
+		double coverage = new BlockRealMatrix(coverageML.getArray()).getEntry(0, 0);
+		
+		MLDouble averagePrecisionML = (MLDouble) reader1.getMLArray("Average_Precision");
+		double averagePrecision = new BlockRealMatrix(averagePrecisionML.getArray()).getEntry(0, 0);
+
+		MLDouble outputsML = (MLDouble) reader1.getMLArray("Outputs");
+		double outputs = new BlockRealMatrix(outputsML.getArray()).getEntry(0, 0);
+
+		MLDouble thresholdML = (MLDouble) reader1.getMLArray("Threshold");
+		double threshold = new BlockRealMatrix(thresholdML.getArray()).getEntry(0, 0);
+
+		MLDouble preLabelsML = (MLDouble) reader1.getMLArray("Pre_Labels");
+		double preLabels = new BlockRealMatrix(preLabelsML.getArray()).getEntry(0, 0);
+		
+		Assert.assertNotNull(results);
+
+		//Assert.assertEquals(results.toString());
 	}
 
 

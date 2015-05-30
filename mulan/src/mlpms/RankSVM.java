@@ -44,6 +44,7 @@ import weka.core.Instances;
 import weka.core.TechnicalInformation;
 import weka.core.TechnicalInformation.Field;
 import weka.core.TechnicalInformation.Type;
+import weka.core.TechnicalInformationHandler;
 
 /**
  * <!-- globalinfo-start --> <!-- globalinfo-end -->
@@ -55,7 +56,7 @@ import weka.core.TechnicalInformation.Type;
  */
 
 @SuppressWarnings("serial")
-public class RankSVM extends MultiLabelLearnerBase {
+public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformationHandler {
 
 	/** Train_dataset. */
 	// private MultiLabelInstances trainingSet;
@@ -434,7 +435,8 @@ public class RankSVM extends MultiLabelLearnerBase {
 		System.out.println("Lilia: ");
 		// find alpha new
 		LinearObjectiveFunction f = new LinearObjectiveFunction(gradient, 0);
-		ArrayList<LinearConstraint> constraints = new ArrayList<LinearConstraint>();
+		//ArrayList<LinearConstraint> constraints = new ArrayList<LinearConstraint>();
+		HashSet<LinearConstraint> constraints = new HashSet<LinearConstraint>();
 		
 		// Constraint Aeq*x=beq
 		for (int i = 0; i < Aeq.getRowDimension(); i++) {
@@ -455,10 +457,11 @@ public class RankSVM extends MultiLabelLearnerBase {
 			constraints.add(new LinearConstraint(coeff, Relationship.LEQ, UB.getEntry(j)));
 			constraints.add(new LinearConstraint(coeff, Relationship.GEQ, 0));
 		}
-		HashSet<LinearConstraint> consts = new HashSet<LinearConstraint>(constraints);
+		//HashSet<LinearConstraint> consts = new HashSet<LinearConstraint>(constraints);
 		SimplexSolver solver = new SimplexSolver();
 		PointValuePair optSolution = solver.optimize(new MaxIter(100), f,
-				new LinearConstraintSet(consts), GoalType.MINIMIZE);
+				//new LinearConstraintSet(consts), GoalType.MINIMIZE);
+				new LinearConstraintSet(constraints), GoalType.MINIMIZE);
 		ArrayRealVector solution = new ArrayRealVector(optSolution.getPoint());
 		System.out.println("Ok: ");
 		return solution;
