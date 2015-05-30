@@ -6,20 +6,12 @@ package mlpms;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.joptimizer.functions.LinearMultivariateRealFunction;
-
 import mlpms.RankSVM.KernelType;
 import mulan.data.InvalidDataFormatException;
 import mulan.data.MultiLabelInstances;
 import mulan.evaluation.Evaluation;
 import mulan.evaluation.Evaluator;
 import mulan.examples.CrossValidationExperiment;
-import scpsolver.constraints.LinearBiggerThanEqualsConstraint;
-import scpsolver.constraints.LinearSmallerThanEqualsConstraint;
-import scpsolver.lpsolver.LinearProgramSolver;
-import scpsolver.lpsolver.SolverFactory;
-import scpsolver.problems.LinearProgram;
-//import jeans.math.evaluate.Evaluator;
 
 
 public class BatchExamples {

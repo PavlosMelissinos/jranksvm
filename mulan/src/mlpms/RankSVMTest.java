@@ -38,29 +38,24 @@ public class RankSVMTest {
 	public void testBuildInternalSetup() throws InvalidDataFormatException, Exception{
 		// Input Data
 		MultiLabelInstances trainingSet;
-		trainingSet = new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
+		trainingSet = new MultiLabelInstances("data/yeast-train-10percent.arff", "data/yeast.xml");
 
 		// Expected Results 
 		// Size_alpha
-		MatFileReader reader1 = new MatFileReader("data/size_alpha.mat");
-		MLDouble size_alpha_mat = (MLDouble)reader1.getMLArray("size_alpha");
+		MatFileReader reader = new MatFileReader("data/matlab10percent.mat");
+		MLDouble size_alpha_mat = (MLDouble)reader.getMLArray("size_alpha");
 		BlockRealMatrix sizeAlphaMat = new BlockRealMatrix(size_alpha_mat.getArray());
 
 		// Label_size
-		MatFileReader reader2 = new MatFileReader("data/Label_size.mat");
-		MLDouble label_size_mat = (MLDouble)reader2.getMLArray("Label_size");
+		MLDouble label_size_mat = (MLDouble)reader.getMLArray("Label_size");
 		BlockRealMatrix labelSizeMat = new BlockRealMatrix(label_size_mat.getArray());
 
 		//Label
-		MatFileReader reader3 = new MatFileReader("data/label.mat");
-		//MLCell label_mat = (MLCell) reader3.getMLArray("Label");
-		MLCell label_mat = (MLCell) reader3.getMLArray("Label");
+		MLCell label_mat = (MLCell) reader.getMLArray("Label");
 		ArrayList<MLArray> labelMat = new ArrayList<MLArray>(label_mat.cells());
 
 		// Not Label
-		MatFileReader reader4 = new MatFileReader("data/not_label.mat");
-		//MLCell label_mat = (MLCell) reader3.getMLArray("Label");
-		MLCell not_label_mat = (MLCell) reader4.getMLArray("not_Label");
+		MLCell not_label_mat = (MLCell) reader.getMLArray("not_Label");
 		ArrayList<MLArray> notLabelMat = new ArrayList<MLArray>(not_label_mat.cells());
 
 		// MyClass is tested
@@ -114,12 +109,12 @@ public class RankSVMTest {
 	public void testBuildInternalgetSVs() throws InvalidDataFormatException, Exception{
 		// Input Data
 		MultiLabelInstances trainingSet;
-		trainingSet = new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
+		trainingSet = new MultiLabelInstances("data/yeast-train-10percent.arff", "data/yeast.xml");
 
 		// Expected Results 
 		// SVs
-		MatFileReader reader1 = new MatFileReader("data/SVs.mat");
-		MLDouble SVs_mat = (MLDouble)reader1.getMLArray("SVs");
+		MatFileReader reader = new MatFileReader("data/matlab10percent.mat");
+		MLDouble SVs_mat = (MLDouble)reader.getMLArray("SVs");
 		BlockRealMatrix SVSMat = new BlockRealMatrix(SVs_mat.getArray());
 
 		// MyClass is tested
@@ -127,9 +122,11 @@ public class RankSVMTest {
 		HashMap<String, Object>  results = tester.setup(trainingSet);
 		BlockRealMatrix SVs = tester.getSVs();
 
-		//Size_alpha 
-		assertArrayEquals(SVSMat.getData(), SVs.getData());
-		System.out.println("OK");
+		// SVs
+		double delta = 0.0001;
+		for (int i = 0; i < SVSMat.getRowDimension(); i++){
+			assertArrayEquals(SVSMat.getRow(i), SVs.getRow(i), delta);
+		}
 
 	}
 	
@@ -137,12 +134,12 @@ public class RankSVMTest {
 	public void testBuildInternalKernelsSetup() throws InvalidDataFormatException, Exception{
 		// Input Data
 		MultiLabelInstances trainingSet;
-		trainingSet = new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
+		trainingSet = new MultiLabelInstances("data/yeast-train-10percent.arff", "data/yeast.xml");
 
 		// Expected Results 
 		// Size_alpha
-		MatFileReader reader1 = new MatFileReader("data/kernelRBF.mat");
-		MLDouble kernel_rbf_mat = (MLDouble)reader1.getMLArray("kernel");
+		MatFileReader reader = new MatFileReader("data/matlab10percent.mat");
+		MLDouble kernel_rbf_mat = (MLDouble)reader.getMLArray("kernel");
 		BlockRealMatrix kernelRBFMat = new BlockRealMatrix(kernel_rbf_mat.getArray());
 
 
@@ -170,7 +167,7 @@ public class RankSVMTest {
 
 		// Expected Results 
 		// Size_alpha
-		MatFileReader reader = new MatFileReader("data/matlab10Percent.mat");
+		MatFileReader reader = new MatFileReader("data/matlab10percent.mat");
 		// Kernel
 		MLDouble kernel_rbf_mat = (MLDouble)reader.getMLArray("kernel");
 		BlockRealMatrix kernelRBFMat = new BlockRealMatrix(kernel_rbf_mat.getArray());
@@ -192,9 +189,6 @@ public class RankSVMTest {
         // Bias
 		MLDouble bias_mat = (MLDouble)reader.getMLArray("Bias");
 		BlockRealMatrix biasMat = new BlockRealMatrix(bias_mat.getArray());
-        // Beta
-		MLDouble beta_mat = (MLDouble)reader.getMLArray("Beta");
-		BlockRealMatrix betaMat = new BlockRealMatrix(beta_mat.getArray());
         // weightsSizePre
 		MLDouble weightsSizePre_mat = (MLDouble)reader.getMLArray("Weights_sizepre");
 		BlockRealMatrix weightsSizePreMat = new BlockRealMatrix(weightsSizePre_mat.getArray());
@@ -226,7 +220,7 @@ public class RankSVMTest {
 		}
 		ArrayRealVector gradient = tester.findAlpha((ArrayRealVector)sizeAlphaMat.getRowVector(0), (ArrayRealVector)labelSizeMat.getRowVector(0), labelNew, notLabelNew, kernelRBFMat);
 		tester.computeBias((ArrayRealVector) labelSizeMat.getRowVector(0), (ArrayRealVector)sizeAlphaMat.getRowVector(0), labelNew , notLabelNew, gradient);
-		tester.computeSizePredictor(betaMat, (ArrayRealVector)biasMat.getRowVector(0), kernelRBFMat, labelNew, notLabelNew);
+		tester.computeSizePredictor(weightsMat, (ArrayRealVector)biasMat.getRowVector(0), kernelRBFMat, labelNew, notLabelNew);
 		BlockRealMatrix weights= tester.getweights(); 
 		double delta = 0.0001;
 		// Gradient
@@ -250,11 +244,11 @@ public class RankSVMTest {
 	public void testMakePredictionInternal() throws IllegalArgumentException, Exception{
 		
 		MultiLabelInstances trainingSet =
-				new MultiLabelInstances("data/yeast-train.arff", "data/yeast.xml");
+				new MultiLabelInstances("data/yeast-train-10percent.arff", "data/yeast.xml");
 		MultiLabelInstances testingSet =
-				new MultiLabelInstances("data/yeast-test.arff", "data/yeast.xml");
+				new MultiLabelInstances("data/yeast-test-10percent.arff", "data/yeast.xml");
 
-		MatFileReader reader = new MatFileReader("data/matlab10Percent.mat");
+		MatFileReader reader = new MatFileReader("data/matlab10percent.mat");
 		
 		MLDouble weightsML = (MLDouble) reader.getMLArray("Weights");
 		BlockRealMatrix weights = new BlockRealMatrix(weightsML.getArray());
