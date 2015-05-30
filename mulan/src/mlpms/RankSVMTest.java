@@ -23,7 +23,6 @@ import mulan.evaluation.measure.RankingLoss;
 
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
-import org.junit.Assert;
 import org.junit.Test;
 
 import weka.core.Instance;
@@ -261,14 +260,6 @@ public class RankSVMTest {
 
 		MatFileReader reader1 = new MatFileReader("data/matlabPredict.mat");
 		
-		//MLStructure svmML = (MLStructure) reader1.getMLArray("svm");
-		//MLChar type = (MLChar) svmML.getField("type");
-		//String typeStr = type.contentToString();
-		//KernelType kType = KernelType.valueOf(typeStr);
-		
-		//MLDouble costML = (MLDouble) svmML.getField("cost", 0);
-		//double cost = new BlockRealMatrix(costML.getArray()).getEntry(0, 0);
-
 		MLDouble weightsML = (MLDouble) reader1.getMLArray("Weights");
 		BlockRealMatrix weights = new BlockRealMatrix(weightsML.getArray());
 
@@ -285,9 +276,8 @@ public class RankSVMTest {
 		MLDouble biasSizePreML = (MLDouble) reader1.getMLArray("Bias_sizepre");
 		double biasSizePre = new BlockRealMatrix(biasSizePreML.getArray()).getEntry(0, 0);
 
-		//RankSVM classifier = new RankSVM(weights, bias, SVs, weightsSizePre, biasSizePre);
-		//classifier.setKernelOptions(kType, cost, gamma, coefficient, degree);
 		RankSVM classifier = new RankSVM();
+		classifier.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
 		classifier.build(trainingSet);
 		
 		for (int i = 0; i < testingSet.getNumInstances(); i++){
@@ -310,18 +300,28 @@ public class RankSVMTest {
 		
 		MLDouble hLossML = (MLDouble) reader1.getMLArray("HammingLoss");
 		double hammingLoss = new BlockRealMatrix(hLossML.getArray()).getEntry(0, 0);
+		HammingLoss hLoss = (HammingLoss) measuresOut.get(0);
+		Assert.assertEquals(hLoss.getValue(), hammingLoss);
 		
 		MLDouble rLossML = (MLDouble) reader1.getMLArray("RankingLoss");
 		double rankingLoss = new BlockRealMatrix(rLossML.getArray()).getEntry(0, 0);
+		RankingLoss rLoss = (RankingLoss) measuresOut.get(1);
+		Assert.assertEquals(rLoss.getValue(), rankingLoss);
 		
 		MLDouble oneErrorML = (MLDouble) reader1.getMLArray("OneError");
 		double oneError = new BlockRealMatrix(oneErrorML.getArray()).getEntry(0, 0);
+		OneError oError = (OneError) measuresOut.get(2);
+		Assert.assertEquals(oError.getValue(), oneError);
 		
 		MLDouble coverageML = (MLDouble) reader1.getMLArray("Coverage");
 		double coverage = new BlockRealMatrix(coverageML.getArray()).getEntry(0, 0);
+		Coverage cov = (Coverage) measuresOut.get(3);
+		Assert.assertEquals(cov.getValue(), coverage);
 		
 		MLDouble averagePrecisionML = (MLDouble) reader1.getMLArray("Average_Precision");
 		double averagePrecision = new BlockRealMatrix(averagePrecisionML.getArray()).getEntry(0, 0);
+		AveragePrecision avgPrec = (AveragePrecision) measuresOut.get(4);
+		Assert.assertEquals(avgPrec.getValue(), averagePrecision);
 
 		MLDouble outputsML = (MLDouble) reader1.getMLArray("Outputs");
 		double outputs = new BlockRealMatrix(outputsML.getArray()).getEntry(0, 0);
@@ -331,6 +331,7 @@ public class RankSVMTest {
 
 		MLDouble preLabelsML = (MLDouble) reader1.getMLArray("Pre_Labels");
 		double preLabels = new BlockRealMatrix(preLabelsML.getArray()).getEntry(0, 0);
+		
 		
 		Assert.assertNotNull(results);
 
