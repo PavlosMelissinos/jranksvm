@@ -288,7 +288,6 @@ public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformati
 					kernel.setEntry(i, j, ExpTemp);
 				}
 			}
-			System.out.println("OK RBF.");
 		} else if (this.kType == KernelType.POLYNOMIAL) {
 			for (int i = 0; i < numTraining; i++) {
 				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
@@ -302,7 +301,6 @@ public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformati
 					kernel.setEntry(i, j, PowTemp);
 				}
 			}
-			System.out.println("OK Polynomial.");
 		} else if (this.kType == KernelType.LINEAR) {
 			for (int i = 0; i < numTraining; i++) {
 				RealVector colVectorTemp1 = SVs_copy.getColumnVector(i);
@@ -313,7 +311,6 @@ public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformati
 					kernel.setEntry(i, j, MultTemp1);
 				}
 			}
-			System.out.println("OK Linear.");
 		}
 		return kernel;
 	}
@@ -331,7 +328,6 @@ public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformati
 			newAlpha.setColumnVector(i, columnVector);
 			cValue.add(newAlpha);
 		}
-		System.out.println("OK training chunk 1.");
 		return cValue;
 	}
 
@@ -448,7 +444,6 @@ public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformati
 				}
 			}
 		}
-		System.out.println("Lilia: ");
 		// find alpha new
 		LinearObjectiveFunction f = new LinearObjectiveFunction(gradient, 0);
 		//ArrayList<LinearConstraint> constraints = new ArrayList<LinearConstraint>();
@@ -479,7 +474,6 @@ public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformati
 				//new LinearConstraintSet(consts), GoalType.MINIMIZE);
 				new LinearConstraintSet(constraints), GoalType.MINIMIZE);
 		ArrayRealVector solution = new ArrayRealVector(optSolution.getPoint());
-		System.out.println("Ok: ");
 		return solution;
 	}
 
