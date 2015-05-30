@@ -1,6 +1,7 @@
 package mlpms;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,6 +23,7 @@ import mulan.evaluation.measure.RankingLoss;
 
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.BlockRealMatrix;
+import org.junit.Assert;
 import org.junit.Test;
 
 import weka.core.Instance;
@@ -33,8 +35,6 @@ import com.jmatio.types.MLDouble;
 
 public class RankSVMTest {
 
-	private RankSVM learner = new RankSVM();
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testBuildInternalSetup() throws InvalidDataFormatException, Exception{
 		// Input Data
@@ -134,7 +134,7 @@ public class RankSVMTest {
 		System.out.println("OK");
 
 	}
-
+	
 	@Test
 	public void testBuildInternalKernelsSetup() throws InvalidDataFormatException, Exception{
 		// Input Data
@@ -150,18 +150,106 @@ public class RankSVMTest {
 
 		// MyClass is tested
 		RankSVM tester = new  RankSVM();
+		tester.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
 		HashMap<String, Object> results = tester.setup(trainingSet);
 		BlockRealMatrix SVs =  tester.getSVs();
 		BlockRealMatrix kernelRBF = tester.KernelsSetup(trainingSet,  SVs );
 		double delta = 0.0001;
 		//assertArrayEquals(kernelRBF.getData(), kernelRBFMat.getData());
 		for (int i = 0; i < kernelRBF.getColumnDimension(); i++){
-			assertArrayEquals(kernelRBF.getRow(i), kernelRBFMat.getRow(i), delta);
-			System.out.println("OK");
+		assertArrayEquals(kernelRBF.getRow(i), kernelRBFMat.getRow(i), delta);
+		System.out.println("OK");
 		}
 		System.out.println("OK");
 
 	}
+	
+	@Test
+	public void testBuildInternal() throws InvalidDataFormatException, Exception{
+		// Input Data
+		MultiLabelInstances trainingSet;
+		trainingSet = new MultiLabelInstances("data/yeast-train-10percent.arff", "data/yeast.xml");
+
+		// Expected Results 
+		// Size_alpha
+		MatFileReader reader = new MatFileReader("data/matlab10Percent.mat");
+		// Kernel
+		MLDouble kernel_rbf_mat = (MLDouble)reader.getMLArray("kernel");
+		BlockRealMatrix kernelRBFMat = new BlockRealMatrix(kernel_rbf_mat.getArray());
+        // SVs
+		MLDouble SVs_mat = (MLDouble)reader.getMLArray("SVs");
+		BlockRealMatrix SVsMat = new BlockRealMatrix(SVs_mat.getArray());
+		// Size_alpha
+		MLDouble size_alpha_mat = (MLDouble)reader.getMLArray("size_alpha");
+		BlockRealMatrix sizeAlphaMat = new BlockRealMatrix(size_alpha_mat.getArray());
+		// Label size
+		MLDouble label_size_mat = (MLDouble)reader.getMLArray("Label_size");
+		BlockRealMatrix labelSizeMat = new BlockRealMatrix(label_size_mat.getArray());
+		// Label
+		MLCell label_mat = (MLCell) reader.getMLArray("Label");
+		ArrayList<MLArray> labelMat = new ArrayList<MLArray>(label_mat.cells());
+		// Not Label
+		MLCell not_label_mat = (MLCell) reader.getMLArray("not_Label");
+		ArrayList<MLArray> notLabelMat = new ArrayList<MLArray>(not_label_mat.cells());
+        // Gradient
+		MLDouble gradient_mat = (MLDouble)reader.getMLArray("gradient");
+		BlockRealMatrix gradientMat = new BlockRealMatrix(gradient_mat.getArray());
+        // Bias
+		MLDouble bias_mat = (MLDouble)reader.getMLArray("Bias");
+		BlockRealMatrix biasMat = new BlockRealMatrix(bias_mat.getArray());
+        // Beta
+		MLDouble beta_mat = (MLDouble)reader.getMLArray("Beta");
+		BlockRealMatrix betaMat = new BlockRealMatrix(beta_mat.getArray());
+        // weightsSizePre
+		MLDouble weightsSizePre_mat = (MLDouble)reader.getMLArray("Weights_sizepre");
+		BlockRealMatrix weightsSizePreMat = new BlockRealMatrix(weightsSizePre_mat.getArray());
+        // biasSizePre
+		MLDouble biasSizePreML = (MLDouble) reader.getMLArray("Bias_sizepre");
+		double biasSizePre = new BlockRealMatrix(biasSizePreML.getArray()).getEntry(0, 0);
+        // weights
+		MLDouble weights_mat = (MLDouble) reader.getMLArray("Weights");
+		BlockRealMatrix weightsMat = new BlockRealMatrix(weights_mat.getArray());
+		System.out.println("OK");
+
+		// MyClass is tested
+		RankSVM tester = new  RankSVM();
+		tester.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
+		tester.build(trainingSet);
+		ArrayList<ArrayRealVector> labelNew = new ArrayList<ArrayRealVector>();
+		ArrayList<ArrayRealVector> notLabelNew = new ArrayList<ArrayRealVector>();
+		for (int i = 0; i < labelSizeMat.getColumnDimension(); i++){
+			MLArray temp1 = labelMat.get(i);
+			BlockRealMatrix temp2 = new BlockRealMatrix(((MLDouble) temp1).getArray());  // Because Matlab starts indexing from 1 and java from 0.
+			BlockRealMatrix temp3 = temp2.scalarAdd(-1);
+			labelNew.add(i, (ArrayRealVector)temp3.getRowVector(0));
+			MLArray temp4 = notLabelMat.get(i);
+			BlockRealMatrix temp5 = new BlockRealMatrix(((MLDouble) temp4).getArray());  // Because Matlab starts indexing from 1 and java from 0.
+			BlockRealMatrix temp6 = temp5.scalarAdd(-1);
+			notLabelNew.add(i, (ArrayRealVector)temp6.getRowVector(0));
+			System.out.println("OK");
+			//assertArrayEquals(temp3.getRow(0), label2.toArray(),delta);	
+		}
+		ArrayRealVector gradient = tester.findAlpha((ArrayRealVector)sizeAlphaMat.getRowVector(0), (ArrayRealVector)labelSizeMat.getRowVector(0), labelNew, notLabelNew, kernelRBFMat);
+		tester.computeBias((ArrayRealVector) labelSizeMat.getRowVector(0), (ArrayRealVector)sizeAlphaMat.getRowVector(0), labelNew , notLabelNew, gradient);
+		tester.computeSizePredictor(betaMat, (ArrayRealVector)biasMat.getRowVector(0), kernelRBFMat, labelNew, notLabelNew);
+		BlockRealMatrix weights= tester.getweights(); 
+		double delta = 0.0001;
+		// Gradient
+		assertArrayEquals((double [])gradientMat.getRow(0), gradient.toArray(), delta);
+		// Bias
+		assertArrayEquals((double [])biasMat.getRow(0), tester.getBias().toArray(), delta);
+		// weightsSizePre
+		assertArrayEquals((double [])weightsSizePreMat.getRow(0), tester.getweightsbiasSizePre().toArray(), delta);
+		// biasSizePre
+		assertEquals(biasSizePre, tester.getbiasSizePre(), delta);
+		// Weights
+		for (int i = 0; i < weightsMat.getRowDimension(); i++){
+		assertArrayEquals(weightsMat.getRow(i), weights.getRow(i), delta);
+		System.out.println("OK");
+		}
+		System.out.println("OK");	
+	}
+	
 	
 	@Test
 	public void testMakePredictionInternal() throws IllegalArgumentException, Exception{
@@ -180,7 +268,7 @@ public class RankSVMTest {
 		
 		//MLDouble costML = (MLDouble) svmML.getField("cost", 0);
 		//double cost = new BlockRealMatrix(costML.getArray()).getEntry(0, 0);
-		
+
 		MLDouble weightsML = (MLDouble) reader1.getMLArray("Weights");
 		BlockRealMatrix weights = new BlockRealMatrix(weightsML.getArray());
 
@@ -188,7 +276,7 @@ public class RankSVMTest {
 		ArrayRealVector bias = (ArrayRealVector) new BlockRealMatrix(biasML.getArray()).getRowVector(0);
 		
 		MLDouble SVsML = (MLDouble) reader1.getMLArray("SVs");
-		BlockRealMatrix SVs = new BlockRealMatrix(SVsML.getArray());
+		BlockRealMatrix SVs = new BlockRealMatrix(weightsML.getArray());
 		
 		MLDouble weightsSizePreML = (MLDouble) reader1.getMLArray("Weights_sizepre");
 		ArrayRealVector weightsSizePre = 
@@ -200,7 +288,6 @@ public class RankSVMTest {
 		//RankSVM classifier = new RankSVM(weights, bias, SVs, weightsSizePre, biasSizePre);
 		//classifier.setKernelOptions(kType, cost, gamma, coefficient, degree);
 		RankSVM classifier = new RankSVM();
-		classifier.setKernelOptions(KernelType.RBF, 1, 1, 1, 1);
 		classifier.build(trainingSet);
 		
 		for (int i = 0; i < testingSet.getNumInstances(); i++){

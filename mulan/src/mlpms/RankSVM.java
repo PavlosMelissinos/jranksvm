@@ -87,7 +87,7 @@ public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformati
 	private double degree;
 	private double lambdaTol = 1e-6;
 	private double normTol = 1e-4;
-	private int maxIter = 50;
+	private int maxIter = 2;
 	
 	enum KernelType {
 		LINEAR, POLYNOMIAL, RBF;
@@ -123,6 +123,22 @@ public class RankSVM extends MultiLabelLearnerBase implements TechnicalInformati
 
 	public BlockRealMatrix getSVs() {
 		return this.SVs;
+	}
+
+	public ArrayRealVector getBias() {
+		return this.bias;
+	}
+	
+	public double getbiasSizePre() {
+		return this.biasSizePre;
+	}
+	
+	public ArrayRealVector getweightsbiasSizePre() {
+		return this.weightsSizePre;
+	}
+	
+	public BlockRealMatrix  getweights() {
+		return this.weights;
 	}
 
 	@Override
